@@ -1,0 +1,22 @@
+#pragma once
+#include "api.h"
+
+typedef enum simplejs_status
+{
+    SIMPLEJS_STATUS_SUCCESS = 0,
+    SIMPLEJS_STATUS_STACK_OUT_OF_BOUNDS,
+    SIMPLEJS_STATUS_PROGRAM_EXITED,
+    SIMPLEJS_STATUS_PROGRAM_CRASHED,
+    SIMPLEJS_STATUS_NOT_IMPLEMENTED,
+    SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST,
+    SIMPLEJS_STATUS_ALLOCATION_ERROR,
+    SIMPLEJS_STATUS_ENCODING_ERROR,
+    SIMPLEJS_STATUS_INVALID_TOKEN,
+} simplejs_status_t;
+
+#define SIMPLEJS_SUCCESS(status) ((status) == SIMPLEJS_STATUS_SUCCESS)
+#define SIMPLEJS_REQUIRE_SUCCESS(var, label, status) SIMPLEJS_REQUIRE(SIMPLEJS_SUCCESS((status) = (var)), label)
+
+const pchar SIMPLEJS_API simplejs_get_status_string(simplejs_status_t status);
+
+#include "default.h"
