@@ -23,17 +23,12 @@ var result = 2;
 
 label loop;
 
-
-var index = 1;
 var max_iteration = 1000000;
 
-while (index < max_iteration || index == max_iteration)
+for (var index = 1; index < max_iteration || index == max_iteration; index++)
 {
     test_plugin_function(index);
-
-    index++;
 }
-
 
 //if (result)
 //{

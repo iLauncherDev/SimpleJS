@@ -456,7 +456,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         case SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND:
             selected_jump_opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO;
             break;
-        
+
         default:
             SIMPLEJS_ASSERT(false && "unhandled logical operator");
             break;
@@ -650,10 +650,10 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info);
+simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compiler_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info);
 
 simplejs_status_t simplejs_compile_ast_branch(
-    simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *branch_node,
+    simplejs_compiler_ctx_t *compiler_ctx, simplejs_ast_node_t *branch_node,
     simplejs_compiler_ast_info_t ast_info, uintptr_t end_id, uintptr_t next_id)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -674,7 +674,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             if (next_ast == end_ast)
                 next_id = label_id;
 
-            status = simplejs_compile_ast_branch(compile_ctx, statement_ast, ast_info, label_id, next_id);
+            status = simplejs_compile_ast_branch(compiler_ctx, statement_ast, ast_info, label_id, next_id);
             if (!SIMPLEJS_SUCCESS(status))
             {
                 goto result;
@@ -687,7 +687,7 @@ simplejs_status_t simplejs_compile_ast_branch(
 
         instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
         instruct_tmp.symbol.label_id = label_id;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        simplejs_add_instruction(compiler_ctx, instruct_tmp);
     }
     else
     {
@@ -696,7 +696,7 @@ simplejs_status_t simplejs_compile_ast_branch(
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
         instruct_tmp.symbol.label_id = (uintptr_t)branch_node;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
         switch (branch_node->type)
         {
@@ -716,19 +716,19 @@ simplejs_status_t simplejs_compile_ast_branch(
             reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
             reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
 
-            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compile_ctx, reg_info, expression_node), result, status);
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, reg_info, expression_node), result, status);
 
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO;
             instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
             instruct_tmp.symbol.label_id = next_id;
-            simplejs_add_instruction(compile_ctx, instruct_tmp);
+            simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
             while (current_ast != end_ast)
             {
                 simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
-                simplejs_compile_single_ast(compile_ctx, ast, ast_info);
+                simplejs_compile_single_ast(compiler_ctx, ast, ast_info);
 
                 current_ast = current_ast->next;
             }
@@ -736,7 +736,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
             instruct_tmp.symbol.label_id = end_id;
-            simplejs_add_instruction(compile_ctx, instruct_tmp);
+            simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
             break;
         }
@@ -750,7 +750,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             {
                 simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
-                simplejs_compile_single_ast(compile_ctx, ast, ast_info);
+                simplejs_compile_single_ast(compiler_ctx, ast, ast_info);
 
                 current_ast = current_ast->next;
             }
@@ -758,7 +758,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
             instruct_tmp.symbol.label_id = end_id;
-            simplejs_add_instruction(compile_ctx, instruct_tmp);
+            simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
             break;
         }
@@ -773,28 +773,100 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_compiler_ast_info_t ast_info, simplejs_list_entry_t *list);
+simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_ast_info_t ast_info, simplejs_list_entry_t *list);
 
-simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info)
+simplejs_status_t simplejs_build_loop_code(
+    simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_ast_info_t ast_info,
+    simplejs_ast_node_t *init_ast, simplejs_ast_node_t *condition_ast, simplejs_ast_node_t *step_ast, simplejs_ast_node_t *code_ast)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_compiler_instruction_t instruct_tmp;
+    simplejs_compile_reg_info_t reg_info;
+
+    uintptr_t repeat_label_id = (uintptr_t)condition_ast;
+    uintptr_t break_label_id = (uintptr_t)code_ast + 0x20;
+    uintptr_t loop_continue_label_id = (uintptr_t)code_ast + 0x40;
+
+    simplejs_compiler_ast_info_t loop_ast_info = ast_info;
+    loop_ast_info.break_label_id = break_label_id;
+    loop_ast_info.loop_continue_label_id = loop_continue_label_id;
+
+    SIMPLEJS_ASSERT(condition_ast != NULL);
+    SIMPLEJS_ASSERT(code_ast != NULL);
+
+    if (init_ast)
+    {
+        memclr(&reg_info, sizeof(reg_info));
+        reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+        reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, reg_info, init_ast), result, status);
+    }
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
+    instruct_tmp.symbol.label_id = repeat_label_id;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    memclr(&reg_info, sizeof(reg_info));
+    reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+    reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, reg_info, condition_ast), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO;
+    instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+    instruct_tmp.symbol.label_id = break_label_id;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_single_ast(compiler_ctx, code_ast, loop_ast_info), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
+    instruct_tmp.symbol.label_id = loop_continue_label_id;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    if (step_ast)
+    {
+        memclr(&reg_info, sizeof(reg_info));
+        reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+        reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, reg_info, step_ast), result, status);
+    }
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
+    instruct_tmp.symbol.label_id = repeat_label_id;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
+    instruct_tmp.symbol.label_id = break_label_id;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compiler_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_compile_reg_info_t reg_info = {0};
 
-    reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
-    reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
+    reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+    reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
 
     switch (ast->type)
     {
     case SIMPLEJS_AST_NODE_TYPE_VARDECL:
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compile_ctx, reg_info, ast), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, reg_info, ast), result, status);
         break;
     }
 
     case SIMPLEJS_AST_NODE_TYPE_EXPRESSION:
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compile_ctx, reg_info, ast), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, reg_info, ast), result, status);
         break;
     }
 
@@ -806,7 +878,7 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_c
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
         instruct_tmp.symbol.label_id = (uintptr_t)label_context->name->buffer;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         break;
     }
@@ -816,7 +888,7 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_c
         simplejs_compiler_instruction_t instruct_tmp;
 
         simplejs_ast_label_context_t *label_context = NULL;
-        if (!simplejs_get_scoped_output_alt(compile_ctx->parser_ctx, ast, ast->context, &label_context, simplejs_get_scoped_label_callback))
+        if (!simplejs_get_scoped_output_alt(compiler_ctx->parser_ctx, ast, ast->context, &label_context, simplejs_get_scoped_label_callback))
         {
             simplejs_printf("goto label not found on compile time!\n");
 
@@ -827,8 +899,24 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_c
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
         instruct_tmp.symbol.label_id = (uintptr_t)label_context->name->buffer;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_FOR_LOOP:
+    {
+        SIMPLEJS_ASSERT(ast->children_list_count == 4);
+
+        simplejs_compiler_instruction_t instruct_tmp;
+
+        simplejs_ast_node_t *init_ast = simplejs_get_list_entry_structure(ast->children_list_entry.next);
+        simplejs_ast_node_t *condition_ast = simplejs_get_list_entry_structure(init_ast->list_entry.next);
+        simplejs_ast_node_t *step_ast = simplejs_get_list_entry_structure(condition_ast->list_entry.next);
+
+        simplejs_ast_node_t *code_ast = simplejs_get_list_entry_structure(step_ast->list_entry.next);
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_build_loop_code(compiler_ctx, ast_info, init_ast, condition_ast, step_ast, code_ast), result, status);
         break;
     }
 
@@ -841,52 +929,19 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_c
         simplejs_ast_node_t *condition_ast = simplejs_get_list_entry_structure(ast->children_list_entry.next);
         simplejs_ast_node_t *code_ast = simplejs_get_list_entry_structure(condition_ast->list_entry.next);
 
-        simplejs_compiler_ast_info_t loop_ast_info = ast_info;
-        loop_ast_info.break_label_id = (uintptr_t)ast;
-        loop_ast_info.loop_continue_label_id = (uintptr_t)condition_ast;
-
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
-        instruct_tmp.symbol.label_id = loop_ast_info.loop_continue_label_id;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
-
-        memclr(&reg_info, sizeof(reg_info));
-        reg_info.is_write = false;
-        reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
-        reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
-
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compile_ctx, reg_info, condition_ast), result, status);
-
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO;
-        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
-        instruct_tmp.symbol.label_id = loop_ast_info.break_label_id;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
-
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_single_ast(compile_ctx, code_ast, loop_ast_info), result, status);
-
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
-        instruct_tmp.symbol.label_id = loop_ast_info.loop_continue_label_id;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
-
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
-        instruct_tmp.symbol.label_id = loop_ast_info.break_label_id;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
-
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_build_loop_code(compiler_ctx, ast_info, NULL, condition_ast, NULL, code_ast), result, status);
         break;
     }
 
     case SIMPLEJS_AST_NODE_TYPE_BRANCH:
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_branch(compile_ctx, ast, ast_info, 0, 0), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_branch(compiler_ctx, ast, ast_info, 0, 0), result, status);
         break;
     }
 
     case SIMPLEJS_AST_NODE_TYPE_CODEBLOCK:
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast(compile_ctx, ast_info, &ast->children_list_entry), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast(compiler_ctx, ast_info, &ast->children_list_entry), result, status);
         break;
     }
     }
@@ -895,7 +950,7 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_compiler_ast_info_t ast_info, simplejs_list_entry_t *list)
+simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_ast_info_t ast_info, simplejs_list_entry_t *list)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
@@ -906,7 +961,7 @@ simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, sim
     {
         simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
-        status = simplejs_compile_single_ast(compile_ctx, ast, ast_info);
+        status = simplejs_compile_single_ast(compiler_ctx, ast, ast_info);
         if (!SIMPLEJS_SUCCESS(status))
         {
             goto result;
@@ -919,7 +974,7 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *function_node, bool is_main)
+simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compiler_ctx, simplejs_ast_node_t *function_node, bool is_main)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_ast_function_context_t *function_context = function_node->context;
@@ -932,31 +987,31 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_FUNCTION;
         instruct_tmp.symbol.label_id = (uintptr_t)function_context->name->buffer;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        simplejs_add_instruction(compiler_ctx, instruct_tmp);
     }
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_ARG_OFFSET;
-    simplejs_add_instruction(compile_ctx, instruct_tmp);
+    simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_OFFSET;
-    simplejs_add_instruction(compile_ctx, instruct_tmp);
+    simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_ADD_STACK_VAR_SIZE;
     instruct_tmp.instruction.imm = function_context->local_var_count;
-    simplejs_add_instruction(compile_ctx, instruct_tmp);
+    simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
     for (size_t i = 0; i < function_context->local_var_count; i++)
     {
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_VAR;
         instruct_tmp.instruction.imm = i;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        simplejs_add_instruction(compiler_ctx, instruct_tmp);
     }
 
-    status = simplejs_compile_ast(compile_ctx, ast_info, &function_node->children_list_entry);
+    status = simplejs_compile_ast(compiler_ctx, ast_info, &function_node->children_list_entry);
     if (!SIMPLEJS_SUCCESS(status))
     {
         goto result;
@@ -967,13 +1022,13 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_FREE_LOC_VAR;
         instruct_tmp.instruction.imm = i;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        simplejs_add_instruction(compiler_ctx, instruct_tmp);
     }
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_ADD_STACK_VAR_SIZE;
     instruct_tmp.instruction.imm = -function_context->local_var_count;
-    simplejs_add_instruction(compile_ctx, instruct_tmp);
+    simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     if (is_main)
@@ -981,7 +1036,7 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
     else
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RETURN;
 
-    simplejs_add_instruction(compile_ctx, instruct_tmp);
+    simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
 result:
     return status;
