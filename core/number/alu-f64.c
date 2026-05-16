@@ -4,5 +4,6 @@
 #define FLOAT_NAME 64
 #define FLOAT_TYPE double
 #define INT_TYPE uint64_t
+#define SINT_TYPE int64_t
 
 #include "alu-f.c"

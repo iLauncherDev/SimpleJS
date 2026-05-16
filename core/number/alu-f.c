@@ -12,11 +12,30 @@ GENERATE_ALU_FLOAT_EXEC_DECL(dec, FLOAT_NAME)
     --;
 }
 
+GENERATE_ALU_FLOAT_EXEC_DECL(not, FLOAT_NAME)
+{
+    GENERATE_ALU_FLOAT_OUT_VALUE(a, FLOAT_NAME) = (FLOAT_TYPE)(~(INT_TYPE)GENERATE_ALU_FLOAT_OUT_VALUE(a, FLOAT_NAME));
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(neg, FLOAT_NAME)
+{
+    GENERATE_ALU_FLOAT_OUT_VALUE(a, FLOAT_NAME) = -GENERATE_ALU_FLOAT_OUT_VALUE(a, FLOAT_NAME);
+}
+
 GENERATE_ALU_FLOAT_EXEC_DECL(equal, FLOAT_NAME)
 {
     FLOAT_TYPE a_float = simplejs_number_get_floatXX_jumptable[a->type](a);
     FLOAT_TYPE b_float = simplejs_number_get_floatXX_jumptable[b->type](b);
     FLOAT_TYPE result = (FLOAT_TYPE)(a_float == b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(not_equal, FLOAT_NAME)
+{
+    FLOAT_TYPE a_float = simplejs_number_get_floatXX_jumptable[a->type](a);
+    FLOAT_TYPE b_float = simplejs_number_get_floatXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float != b_float);
 
     GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
 }
@@ -35,6 +54,60 @@ GENERATE_ALU_FLOAT_EXEC_DECL(below, FLOAT_NAME)
     FLOAT_TYPE a_float = simplejs_number_get_floatXX_jumptable[a->type](a);
     FLOAT_TYPE b_float = simplejs_number_get_floatXX_jumptable[b->type](b);
     FLOAT_TYPE result = (FLOAT_TYPE)(a_float < b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(or, FLOAT_NAME)
+{
+    INT_TYPE a_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
+    INT_TYPE b_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float | b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(and, FLOAT_NAME)
+{
+    INT_TYPE a_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
+    INT_TYPE b_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float & b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(shl, FLOAT_NAME)
+{
+    INT_TYPE a_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
+    INT_TYPE b_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float << b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(shr, FLOAT_NAME)
+{
+    INT_TYPE a_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
+    INT_TYPE b_float = (INT_TYPE)simplejs_number_get_intXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float >> b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(sal, FLOAT_NAME)
+{
+    SINT_TYPE a_float = (SINT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
+    SINT_TYPE b_float = (SINT_TYPE)simplejs_number_get_intXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float << b_float);
+
+    GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
+}
+
+GENERATE_ALU_FLOAT_EXEC_DECL(sar, FLOAT_NAME)
+{
+    SINT_TYPE a_float = (SINT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
+    SINT_TYPE b_float = (SINT_TYPE)simplejs_number_get_intXX_jumptable[b->type](b);
+    FLOAT_TYPE result = (FLOAT_TYPE)(a_float >> b_float);
 
     GENERATE_ALU_FLOAT_FLUSH_RESULT(result, out, FLOAT_NAME);
 }
@@ -88,9 +161,22 @@ static void (*simplejs_execute_alu_fXX_op_table[SIMPLEJS_NUMBER_ALU_END])(simple
     [SIMPLEJS_NUMBER_ALU_INC] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(inc, FLOAT_NAME),
     [SIMPLEJS_NUMBER_ALU_DEC] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(dec, FLOAT_NAME),
 
+    [SIMPLEJS_NUMBER_ALU_NOT] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(not, FLOAT_NAME),
+    [SIMPLEJS_NUMBER_ALU_NEG] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(neg, FLOAT_NAME),
+
     [SIMPLEJS_NUMBER_ALU_EQUAL] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(equal, FLOAT_NAME),
+    [SIMPLEJS_NUMBER_ALU_NOT_EQUAL] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(not_equal, FLOAT_NAME),
     [SIMPLEJS_NUMBER_ALU_GREATER] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(greater, FLOAT_NAME),
     [SIMPLEJS_NUMBER_ALU_BELOW] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(below, FLOAT_NAME),
+
+    [SIMPLEJS_NUMBER_ALU_OR] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(or, FLOAT_NAME),
+    [SIMPLEJS_NUMBER_ALU_AND] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(and, FLOAT_NAME),
+
+    [SIMPLEJS_NUMBER_ALU_SHL] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(shl, FLOAT_NAME),
+    [SIMPLEJS_NUMBER_ALU_SHR] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(shr, FLOAT_NAME),
+
+    [SIMPLEJS_NUMBER_ALU_SAL] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(sal, FLOAT_NAME),
+    [SIMPLEJS_NUMBER_ALU_SAR] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(sar, FLOAT_NAME),
 
     [SIMPLEJS_NUMBER_ALU_ADD] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(add, FLOAT_NAME),
     [SIMPLEJS_NUMBER_ALU_SUB] = GENERATE_ALU_FLOAT_EXEC_IDENTIFIER(sub, FLOAT_NAME),
