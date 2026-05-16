@@ -4,5 +4,6 @@
 #define FLOAT_NAME 32
 #define FLOAT_TYPE float
 #define INT_TYPE uint32_t
+#define SINT_TYPE int32_t
 
 #include "alu-f.c"

@@ -124,10 +124,25 @@ bool simplejs_reuse_symbol(simplejs_compiler_ctx_t *compiler_ctx, uint8_t opcode
     return false;
 }
 
-simplejs_bytecode_opcode_t binary_ast_opcode_map[SIMPLEJS_AST_NODE_TYPE_END] = {
+simplejs_bytecode_opcode_t op_ast_opcode_map[SIMPLEJS_AST_NODE_TYPE_END] = {
+    [SIMPLEJS_AST_NODE_TYPE_ALU_INC] = SIMPLEJS_BYTECODE_OPCODE_INC_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_DEC] = SIMPLEJS_BYTECODE_OPCODE_DEC_VAR,
+
+    [SIMPLEJS_AST_NODE_TYPE_ALU_NOT] = SIMPLEJS_BYTECODE_OPCODE_NOT_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_NEG] = SIMPLEJS_BYTECODE_OPCODE_NEG_VAR,
+
     [SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL] = SIMPLEJS_BYTECODE_OPCODE_EQUAL_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_NOT_EQUAL] = SIMPLEJS_BYTECODE_OPCODE_NOT_EQUAL_VAR,
     [SIMPLEJS_AST_NODE_TYPE_ALU_GREATER] = SIMPLEJS_BYTECODE_OPCODE_GREATER_VAR,
     [SIMPLEJS_AST_NODE_TYPE_ALU_BELOW] = SIMPLEJS_BYTECODE_OPCODE_BELOW_VAR,
+
+    [SIMPLEJS_AST_NODE_TYPE_ALU_OR] = SIMPLEJS_BYTECODE_OPCODE_OR_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_AND] = SIMPLEJS_BYTECODE_OPCODE_AND_VAR,
+
+    [SIMPLEJS_AST_NODE_TYPE_ALU_SHL] = SIMPLEJS_BYTECODE_OPCODE_SHL_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_SHR] = SIMPLEJS_BYTECODE_OPCODE_SHR_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_SAL] = SIMPLEJS_BYTECODE_OPCODE_SAL_VAR,
+    [SIMPLEJS_AST_NODE_TYPE_ALU_SAR] = SIMPLEJS_BYTECODE_OPCODE_SAR_VAR,
 
     [SIMPLEJS_AST_NODE_TYPE_ALU_ADD] = SIMPLEJS_BYTECODE_OPCODE_ADD_VAR,
     [SIMPLEJS_AST_NODE_TYPE_ALU_SUB] = SIMPLEJS_BYTECODE_OPCODE_SUB_VAR,
@@ -418,9 +433,144 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         break;
     }
 
+    case SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR:
+    case SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 2);
+
+        uintptr_t short_label_id = (uintptr_t)side;
+
+        simplejs_compile_reg_info_t tmp_reg_info;
+
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+        simplejs_ast_node_t *right = simplejs_get_list_entry_structure(left->list_entry.next);
+
+        simplejs_bytecode_opcode_t selected_jump_opcode;
+
+        switch (side->type)
+        {
+        case SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR:
+            selected_jump_opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_NOT_ZERO;
+            break;
+
+        case SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND:
+            selected_jump_opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO;
+            break;
+        
+        default:
+            SIMPLEJS_ASSERT(false && "unhandled logical operator");
+            break;
+        }
+
+        uint8_t reg_op_a = reg_info.is_sub_op ? SIMPLEJS_BYTECODE_VARIABLE_OP_C : SIMPLEJS_BYTECODE_VARIABLE_OP_A;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.is_sub_op = !reg_info.is_sub_op;
+        tmp_reg_info.reg_a = reg_op_a;
+        tmp_reg_info.reg_b = reg_op_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, tmp_reg_info, left), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = selected_jump_opcode;
+        instruct_tmp.instruction.reg_1 = reg_op_a;
+        instruct_tmp.symbol.label_id = short_label_id;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.is_sub_op = !reg_info.is_sub_op;
+        tmp_reg_info.reg_a = reg_op_a;
+        tmp_reg_info.reg_b = reg_op_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, tmp_reg_info, right), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
+        instruct_tmp.symbol.label_id = short_label_id;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_CONVERT_BOOLEAN_VAR;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+        instruct_tmp.instruction.reg_2 = reg_op_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_ALU_INC:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_DEC:
+
+    case SIMPLEJS_AST_NODE_TYPE_ALU_NOT:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_NEG:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 1);
+
+        simplejs_bytecode_opcode_t selected_unary_opcode = op_ast_opcode_map[side->type];
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+
+        uint8_t reg_op_a = reg_info.is_sub_op ? SIMPLEJS_BYTECODE_VARIABLE_OP_C : SIMPLEJS_BYTECODE_VARIABLE_OP_A;
+
+        simplejs_compile_reg_info_t tmp_reg_info;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.is_sub_op = !reg_info.is_sub_op;
+        tmp_reg_info.reg_a = reg_op_a;
+        tmp_reg_info.reg_b = reg_op_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, tmp_reg_info, left), result, status);
+
+        if (side->flags)
+        {
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_MOV_VAR;
+            instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+            instruct_tmp.instruction.reg_2 = reg_op_a;
+
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        }
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = selected_unary_opcode;
+        instruct_tmp.instruction.reg_1 = reg_op_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.is_write = true;
+        tmp_reg_info.reg_a = reg_info.reg_a;
+        tmp_reg_info.reg_b = reg_op_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, tmp_reg_info, left), result, status);
+
+        if (!side->flags)
+        {
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_MOV_VAR;
+            instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+            instruct_tmp.instruction.reg_2 = reg_op_a;
+
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        }
+
+        break;
+    }
+
     case SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_NOT_EQUAL:
     case SIMPLEJS_AST_NODE_TYPE_ALU_GREATER:
     case SIMPLEJS_AST_NODE_TYPE_ALU_BELOW:
+
+    case SIMPLEJS_AST_NODE_TYPE_ALU_OR:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_AND:
+
+    case SIMPLEJS_AST_NODE_TYPE_ALU_SHL:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_SHR:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_SAL:
+    case SIMPLEJS_AST_NODE_TYPE_ALU_SAR:
 
     case SIMPLEJS_AST_NODE_TYPE_ALU_ADD:
     case SIMPLEJS_AST_NODE_TYPE_ALU_SUB:
@@ -430,23 +580,26 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
     {
         SIMPLEJS_ASSERT(side->children_list_count == 2);
 
-        simplejs_bytecode_opcode_t selected_binary_opcode = binary_ast_opcode_map[side->type];
+        simplejs_bytecode_opcode_t selected_binary_opcode = op_ast_opcode_map[side->type];
         simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
         simplejs_ast_node_t *right = simplejs_get_list_entry_structure(left->list_entry.next);
+
+        uint8_t reg_op_a = reg_info.is_sub_op ? SIMPLEJS_BYTECODE_VARIABLE_OP_C : SIMPLEJS_BYTECODE_VARIABLE_OP_A;
+        uint8_t reg_op_b = reg_info.is_sub_op ? SIMPLEJS_BYTECODE_VARIABLE_OP_D : SIMPLEJS_BYTECODE_VARIABLE_OP_B;
 
         simplejs_compile_reg_info_t tmp_reg_info;
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-        tmp_reg_info.is_write = false;
-        tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_OP_A;
-        tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_OP_A;
+        tmp_reg_info.is_sub_op = !reg_info.is_sub_op;
+        tmp_reg_info.reg_a = reg_op_a;
+        tmp_reg_info.reg_b = reg_op_a;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, tmp_reg_info, left), result, status);
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-        tmp_reg_info.is_write = false;
-        tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_OP_B;
-        tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_OP_B;
+        tmp_reg_info.is_sub_op = !reg_info.is_sub_op;
+        tmp_reg_info.reg_a = reg_op_b;
+        tmp_reg_info.reg_b = reg_op_b;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, tmp_reg_info, right), result, status);
 
@@ -454,8 +607,8 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         instruct_tmp.instruction.opcode = selected_binary_opcode;
 
         instruct_tmp.instruction.imm = reg_info.reg_a;
-        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_OP_A;
-        instruct_tmp.instruction.reg_2 = SIMPLEJS_BYTECODE_VARIABLE_OP_B;
+        instruct_tmp.instruction.reg_1 = reg_op_a;
+        instruct_tmp.instruction.reg_2 = reg_op_b;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
@@ -497,11 +650,11 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *ast);
+simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info);
 
 simplejs_status_t simplejs_compile_ast_branch(
     simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *branch_node,
-    uintptr_t end_id, uintptr_t next_id)
+    simplejs_compiler_ast_info_t ast_info, uintptr_t end_id, uintptr_t next_id)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
@@ -521,7 +674,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             if (next_ast == end_ast)
                 next_id = label_id;
 
-            status = simplejs_compile_ast_branch(compile_ctx, statement_ast, label_id, next_id);
+            status = simplejs_compile_ast_branch(compile_ctx, statement_ast, ast_info, label_id, next_id);
             if (!SIMPLEJS_SUCCESS(status))
             {
                 goto result;
@@ -575,7 +728,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             {
                 simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
-                simplejs_compile_single_ast(compile_ctx, ast);
+                simplejs_compile_single_ast(compile_ctx, ast, ast_info);
 
                 current_ast = current_ast->next;
             }
@@ -597,7 +750,7 @@ simplejs_status_t simplejs_compile_ast_branch(
             {
                 simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
-                simplejs_compile_single_ast(compile_ctx, ast);
+                simplejs_compile_single_ast(compile_ctx, ast, ast_info);
 
                 current_ast = current_ast->next;
             }
@@ -620,9 +773,9 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_list_entry_t *list);
+simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_compiler_ast_info_t ast_info, simplejs_list_entry_t *list);
 
-simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *ast)
+simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
@@ -647,19 +800,20 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_c
 
     case SIMPLEJS_AST_NODE_TYPE_LABEL:
     {
-        simplejs_compiler_instruction_t instruct_tmp = {0};
+        simplejs_compiler_instruction_t instruct_tmp;
         simplejs_ast_label_context_t *label_context = ast->context;
 
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
         instruct_tmp.symbol.label_id = (uintptr_t)label_context->name->buffer;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
 
         break;
     }
 
     case SIMPLEJS_AST_NODE_TYPE_GOTO:
     {
-        simplejs_compiler_instruction_t instruct_tmp = {0};
+        simplejs_compiler_instruction_t instruct_tmp;
 
         simplejs_ast_label_context_t *label_context = NULL;
         if (!simplejs_get_scoped_output_alt(compile_ctx->parser_ctx, ast, ast->context, &label_context, simplejs_get_scoped_label_callback))
@@ -670,22 +824,69 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compile_c
             goto result;
         }
 
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
         instruct_tmp.symbol.label_id = (uintptr_t)label_context->name->buffer;
-        simplejs_add_instruction(compile_ctx, instruct_tmp);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_WHILE_LOOP:
+    {
+        SIMPLEJS_ASSERT(ast->children_list_count == 2);
+
+        simplejs_compiler_instruction_t instruct_tmp;
+
+        simplejs_ast_node_t *condition_ast = simplejs_get_list_entry_structure(ast->children_list_entry.next);
+        simplejs_ast_node_t *code_ast = simplejs_get_list_entry_structure(condition_ast->list_entry.next);
+
+        simplejs_compiler_ast_info_t loop_ast_info = ast_info;
+        loop_ast_info.break_label_id = (uintptr_t)ast;
+        loop_ast_info.loop_continue_label_id = (uintptr_t)condition_ast;
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
+        instruct_tmp.symbol.label_id = loop_ast_info.loop_continue_label_id;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
+
+        memclr(&reg_info, sizeof(reg_info));
+        reg_info.is_write = false;
+        reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+        reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compile_ctx, reg_info, condition_ast), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+        instruct_tmp.symbol.label_id = loop_ast_info.break_label_id;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_single_ast(compile_ctx, code_ast, loop_ast_info), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;
+        instruct_tmp.symbol.label_id = loop_ast_info.loop_continue_label_id;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
+        instruct_tmp.symbol.label_id = loop_ast_info.break_label_id;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compile_ctx, instruct_tmp), result, status);
 
         break;
     }
 
     case SIMPLEJS_AST_NODE_TYPE_BRANCH:
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_branch(compile_ctx, ast, 0, 0), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_branch(compile_ctx, ast, ast_info, 0, 0), result, status);
         break;
     }
 
     case SIMPLEJS_AST_NODE_TYPE_CODEBLOCK:
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast(compile_ctx, &ast->children_list_entry), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast(compile_ctx, ast_info, &ast->children_list_entry), result, status);
         break;
     }
     }
@@ -694,7 +895,7 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_list_entry_t *list)
+simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, simplejs_compiler_ast_info_t ast_info, simplejs_list_entry_t *list)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
@@ -705,7 +906,7 @@ simplejs_status_t simplejs_compile_ast(simplejs_compiler_ctx_t *compile_ctx, sim
     {
         simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
-        status = simplejs_compile_single_ast(compile_ctx, ast);
+        status = simplejs_compile_single_ast(compile_ctx, ast, ast_info);
         if (!SIMPLEJS_SUCCESS(status))
         {
             goto result;
@@ -724,6 +925,7 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
     simplejs_ast_function_context_t *function_context = function_node->context;
 
     simplejs_compiler_instruction_t instruct_tmp = {0};
+    simplejs_compiler_ast_info_t ast_info = {0};
 
     if (function_context->name)
     {
@@ -754,7 +956,7 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
         simplejs_add_instruction(compile_ctx, instruct_tmp);
     }
 
-    status = simplejs_compile_ast(compile_ctx, &function_node->children_list_entry);
+    status = simplejs_compile_ast(compile_ctx, ast_info, &function_node->children_list_entry);
     if (!SIMPLEJS_SUCCESS(status))
     {
         goto result;
@@ -899,8 +1101,21 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
             simplejs_printf("-0x%x", -instruction.imm_signed);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_JMP_IF_NOT_ZERO:
+        simplejs_printf("jmp_if_not_zero v%u, ", instruction.reg_1);
+
+        if (instruction.imm_signed > 0)
+            simplejs_printf("0x%d", instruction.imm_signed);
+        else
+            simplejs_printf("-0x%x", -instruction.imm_signed);
+        break;
+
     case SIMPLEJS_BYTECODE_OPCODE_EXIT:
         simplejs_printf("exit");
+        break;
+
+    case SIMPLEJS_BYTECODE_OPCODE_CONVERT_BOOLEAN_VAR:
+        simplejs_printf("convert_boolean_var v%u, v%u", instruction.reg_1, instruction.reg_2);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_INC_VAR:
@@ -910,14 +1125,44 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         simplejs_printf("dec_var v%u", instruction.reg_1);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_NOT_VAR:
+        simplejs_printf("not_var v%u", instruction.reg_1);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_NEG_VAR:
+        simplejs_printf("neg_var v%u", instruction.reg_1);
+        break;
+
     case SIMPLEJS_BYTECODE_OPCODE_EQUAL_VAR:
         simplejs_printf("equal_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_NOT_EQUAL_VAR:
+        simplejs_printf("not_equal_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
         break;
     case SIMPLEJS_BYTECODE_OPCODE_GREATER_VAR:
         simplejs_printf("greater_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
         break;
     case SIMPLEJS_BYTECODE_OPCODE_BELOW_VAR:
         simplejs_printf("below_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+
+    case SIMPLEJS_BYTECODE_OPCODE_OR_VAR:
+        simplejs_printf("or_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_AND_VAR:
+        simplejs_printf("and_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+
+    case SIMPLEJS_BYTECODE_OPCODE_SHL_VAR:
+        simplejs_printf("shl_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SHR_VAR:
+        simplejs_printf("shr_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SAL_VAR:
+        simplejs_printf("sal_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SAR_VAR:
+        simplejs_printf("sar_var v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_ADD_VAR:
@@ -949,11 +1194,12 @@ void simplejs_ast_dump_bytecode(simplejs_compiler_ctx_t *compiler_ctx)
     simplejs_bytecode_header_t *header = (void *)compiler_ctx->executable;
     uint16_t header_size = ((uint16_t)header->size_low << 0) | ((uint16_t)header->size_high << 8);
 
-    uint8_t *instruction_pointer = (uint8_t *)header + header_size;
+    uint8_t *start_instruction_pointer = (uint8_t *)header + header_size;
+    uint8_t *instruction_pointer = start_instruction_pointer;
 
     while (true)
     {
-        simplejs_printf("/* ip: 0x%08x */ ", (uint32_t)((uintptr_t)instruction_pointer - (uintptr_t)header));
+        simplejs_printf("/* ip: 0x%08x */ ", (uint32_t)((uintptr_t)instruction_pointer - (uintptr_t)start_instruction_pointer));
 
         uint8_t instruction_size;
         simplejs_bytecode_instruction_t instruction;
@@ -1076,6 +1322,7 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
             {
             case SIMPLEJS_BYTECODE_OPCODE_JMP:
             case SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO:
+            case SIMPLEJS_BYTECODE_OPCODE_JMP_IF_NOT_ZERO:
             {
                 uint32_t absolute_offset = 0;
                 bool label_result = simplejs_get_label_offset(compiler_ctx, SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO, compiler_instruction->symbol.label_id, &absolute_offset);

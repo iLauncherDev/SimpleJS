@@ -13,6 +13,7 @@ const pchar SIMPLEJS_API simplejs_get_status_string(simplejs_status_t status)
         CASE_TO_STRING(SIMPLEJS_STATUS_ALLOCATION_ERROR);
         CASE_TO_STRING(SIMPLEJS_STATUS_ENCODING_ERROR);
         CASE_TO_STRING(SIMPLEJS_STATUS_INVALID_TOKEN);
+        CASE_TO_STRING(SIMPLEJS_STATUS_INVALID_OPCODE);
     }
 
     return "Unknown";

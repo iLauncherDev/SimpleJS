@@ -1,6 +1,7 @@
 #pragma once
 #include "tokenizer.h"
 #include "lib/utf8.h"
+#include <simplejs/parser.h>
 
 typedef enum
 {
@@ -12,9 +13,13 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_ELSE,
     SIMPLEJS_AST_NODE_TYPE_ELSE_IF,
 
+    SIMPLEJS_AST_NODE_TYPE_FOR_LOOP,
+    SIMPLEJS_AST_NODE_TYPE_WHILE_LOOP,
+
     SIMPLEJS_AST_NODE_TYPE_LABEL,
     SIMPLEJS_AST_NODE_TYPE_GOTO,
 
+    SIMPLEJS_AST_NODE_TYPE_UNARY_OPERATOR,
     SIMPLEJS_AST_NODE_TYPE_BINARY_OPERATOR,
 
     SIMPLEJS_AST_NODE_TYPE_NUMBER,
@@ -28,17 +33,27 @@ typedef enum
 
     SIMPLEJS_AST_NODE_TYPE_ASSIGN,
 
-    SIMPLEJS_AST_NODE_TYPE_ALU_ASSIGN_INC,
-    SIMPLEJS_AST_NODE_TYPE_ALU_ASSIGN_DEC,
-    SIMPLEJS_AST_NODE_TYPE_ALU_INC_ASSIGN,
-    SIMPLEJS_AST_NODE_TYPE_ALU_DEC_ASSIGN,
+    SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR,
+    SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND,
 
-    SIMPLEJS_AST_NODE_TYPE_ALU_ADD_ASSIGN,
-    SIMPLEJS_AST_NODE_TYPE_ALU_SUB_ASSIGN,
+    SIMPLEJS_AST_NODE_TYPE_ALU_INC,
+    SIMPLEJS_AST_NODE_TYPE_ALU_DEC,
+
+    SIMPLEJS_AST_NODE_TYPE_ALU_NOT,
+    SIMPLEJS_AST_NODE_TYPE_ALU_NEG,
 
     SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL,
+    SIMPLEJS_AST_NODE_TYPE_ALU_NOT_EQUAL,
     SIMPLEJS_AST_NODE_TYPE_ALU_GREATER,
     SIMPLEJS_AST_NODE_TYPE_ALU_BELOW,
+
+    SIMPLEJS_AST_NODE_TYPE_ALU_OR,
+    SIMPLEJS_AST_NODE_TYPE_ALU_AND,
+
+    SIMPLEJS_AST_NODE_TYPE_ALU_SHL,
+    SIMPLEJS_AST_NODE_TYPE_ALU_SHR,
+    SIMPLEJS_AST_NODE_TYPE_ALU_SAL,
+    SIMPLEJS_AST_NODE_TYPE_ALU_SAR,
 
     SIMPLEJS_AST_NODE_TYPE_ALU_ADD,
     SIMPLEJS_AST_NODE_TYPE_ALU_SUB,
@@ -82,6 +97,11 @@ typedef enum
     SIMPLEJS_PARSER_STATE_LABEL_NAME,
     SIMPLEJS_PARSER_STATE_GOTO_NAME,
 
+    SIMPLEJS_PARSER_STATE_WHILE_LOOP_ARGS,
+    SIMPLEJS_PARSER_STATE_WHILE_LOOP_CONDITION,
+    SIMPLEJS_PARSER_STATE_WHILE_LOOP_CODE,
+    SIMPLEJS_PARSER_STATE_WHILE_LOOP_END,
+
     SIMPLEJS_PARSER_STATE_EXPRESSION,
 } simplejs_parser_state_t;
 
@@ -93,6 +113,7 @@ typedef struct simplejs_ast_node
 
     void *parent_node;
     void *context;
+    uintptr_t flags;
 
     uint32_t children_list_count;
     simplejs_list_entry_t children_list_entry;
@@ -156,7 +177,7 @@ typedef struct simplejs_ast_label_context
     simplejs_list_entry_t _scope_label_list_entry;
 } simplejs_ast_label_context_t;
 
-typedef struct simplejs_parser_ctx
+struct simplejs_parser_ctx
 {
     simplejs_parser_state_t state;
 
@@ -168,8 +189,7 @@ typedef struct simplejs_parser_ctx
 
     simplejs_list_entry_t function_context_stack;
     simplejs_ast_function_context_t *current_function_context_stack;
-} simplejs_parser_ctx_t;
+};
 
 simplejs_status_t simplejs_parse_expression(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, int min_bp);
-
-#include <simplejs/parser.h>
+void simplejs_free_ast_list(simplejs_ast_node_t *node);

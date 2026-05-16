@@ -2,7 +2,7 @@
 
 static char *useless_chars = "\r";
 static char *separators_chars = " \n";
-static char *valid_operators = ";:,.${}()<>+-*/%|&=";
+static char *valid_operators = ";:,.${}()<>+-*/%|&!=";
 
 static char *oneline_comment_operators = "//";
 
@@ -25,6 +25,7 @@ static char special_char_vector[] = {
 char *keywords_list_string[] = {
     "const", "let", "var",
     "if", "else",
+    "for", "while",
     "class", "new", "delete",
     "async", "function", "return",
     "label", "goto"};
@@ -37,6 +38,8 @@ char *expr_keywords_list_string[] = {
 char *composite_list_string[] = {
     "=",
     "==",
+    "!=",
+
     "+=",
     "-=",
     "*=",
@@ -53,8 +56,11 @@ char *composite_list_string[] = {
     ">>",
     "<<",
 
-    ">",
+    "<<<",
+    ">>>",
+
     "<",
+    ">",
 
     "+",
     "-",

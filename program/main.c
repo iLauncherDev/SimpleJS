@@ -8,6 +8,8 @@
 #include <vm.h>
 #include <builtin_object/dynamic_object.h>
 
+#include <time.h>
+
 char *file_path = NULL;
 char *export_bytecode_path = NULL;
 
@@ -323,12 +325,20 @@ int main(int argc, char **argv)
 
     printf("vm started!\n");
 
+    clock_t start_time, end_time;
+    double elapsed_time;
+
+    start_time = clock();
+
     while (SIMPLEJS_SUCCESS(status))
     {
         status = simplejs_execute_vm(vm);
     }
 
-    printf("vm exited with '%s'\n", simplejs_get_status_string(status));
+    end_time = clock();
+    elapsed_time = (double)(end_time - start_time) / (double)CLOCKS_PER_SEC;
+
+    printf("vm exited with '%s' on %f seconds\n", simplejs_get_status_string(status), elapsed_time);
 
 result:
     if (!SIMPLEJS_SUCCESS(status))

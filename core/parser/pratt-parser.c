@@ -11,6 +11,131 @@ bool simplejs_get_scoped_output(
 
 int simplejs_parse_expression_level = 0;
 
+typedef struct local_scoped
+{
+    bool is_function, is_argument;
+
+    uint32_t reference;
+    simplejs_utf8_string_t *string;
+} local_scoped_t;
+
+typedef struct operators_type_node
+{
+    char *operator;
+    simplejs_ast_node_type_t node_type;
+    bool support_assign_first;
+} operators_type_node_t;
+
+operators_type_node_t unary_operators_type_node[] = {
+    {
+        .operator = "++",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_INC,
+        .support_assign_first = true,
+    },
+    {
+        .operator = "--",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_DEC,
+        .support_assign_first = true,
+    },
+
+    {
+        .operator = "~",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_NOT,
+    },
+    {
+        .operator = "-",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_NEG,
+    },
+};
+
+operators_type_node_t binary_operators_type_node[] = {
+    {
+        .operator = ".",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS,
+    },
+    {
+        .operator = "=",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ASSIGN,
+    },
+
+    {
+        .operator = "||",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR,
+    },
+    {
+        .operator = "&&",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND,
+    },
+
+    {
+        .operator = "==",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL,
+    },
+    {
+        .operator = "!=",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_NOT_EQUAL,
+    },
+    {
+        .operator = ">",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_GREATER,
+    },
+    {
+        .operator = "<",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_BELOW,
+    },
+
+    {
+        .operator = "|",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_OR,
+    },
+    {
+        .operator = "&",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_AND,
+    },
+
+    {
+        .operator = "<<",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SHL,
+    },
+    {
+        .operator = ">>",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SHR,
+    },
+    {
+        .operator = "<<<",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SAL,
+    },
+    {
+        .operator = ">>>",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SAR,
+    },
+
+    {
+        .operator = "+",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_ADD,
+    },
+    {
+        .operator = "-",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SUB,
+    },
+    {
+        .operator = "*",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_MUL,
+    },
+    {
+        .operator = "/",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_DIV,
+    },
+    {
+        .operator = "%",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_MOD,
+    },
+    {
+        .operator = "(",
+        .node_type = SIMPLEJS_AST_NODE_TYPE_FUNCTION_CALL,
+    },
+};
+
 void _simplejs_parser_printf(char *file, int line, char *fmt, ...)
 {
     va_list args;
@@ -27,6 +152,78 @@ void _simplejs_parser_printf(char *file, int line, char *fmt, ...)
 }
 
 #define simplejs_parser_printf(fmt, ...) _simplejs_parser_printf(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
+static simplejs_ast_node_type_t simplejs_get_node_type_for_unary_operator(simplejs_utf8_string_t *string, bool assign_first)
+{
+    for (size_t i = 0; i < sizeof(unary_operators_type_node) / sizeof(*unary_operators_type_node); i++)
+    {
+        operators_type_node_t *entry = &unary_operators_type_node[i];
+
+        if (!strcmp(entry->operator, string->buffer))
+        {
+            if (assign_first && (entry->support_assign_first != assign_first))
+                continue;
+
+            return entry->node_type;
+        }
+    }
+
+    return SIMPLEJS_AST_NODE_TYPE_UNARY_OPERATOR;
+}
+
+static simplejs_ast_node_type_t simplejs_get_node_type_for_binary_operator(simplejs_utf8_string_t *string)
+{
+    for (size_t i = 0; i < sizeof(binary_operators_type_node) / sizeof(*binary_operators_type_node); i++)
+    {
+        operators_type_node_t *entry = &binary_operators_type_node[i];
+
+        if (!strcmp(entry->operator, string->buffer))
+        {
+            return entry->node_type;
+        }
+    }
+
+    return SIMPLEJS_AST_NODE_TYPE_BINARY_OPERATOR;
+}
+
+static simplejs_status_t simplejs_make_unary_node(simplejs_token_t *operator, simplejs_ast_node_type_t node_type, bool assign_first, simplejs_ast_node_t **out, simplejs_ast_node_t *left)
+{
+    simplejs_ast_node_t *unary_ast = NULL;
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &unary_ast), result, status);
+    unary_ast->context = operator->string;
+    unary_ast->flags = assign_first;
+
+    SIMPLEJS_ASSERT(left != NULL);
+
+    simplejs_insert_children_ast_to_parent(unary_ast, left);
+
+    *out = unary_ast;
+
+result:
+    return status;
+}
+
+static simplejs_status_t simplejs_make_binary_node(simplejs_token_t *operator, simplejs_ast_node_type_t node_type, simplejs_ast_node_t **out, simplejs_ast_node_t *left, simplejs_ast_node_t *right)
+{
+    simplejs_ast_node_t *binary_ast = NULL;
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &binary_ast), result, status);
+    binary_ast->context = operator->string;
+
+    SIMPLEJS_ASSERT(left != NULL);
+    SIMPLEJS_ASSERT(right != NULL);
+
+    simplejs_insert_children_ast_to_parent(binary_ast, left);
+    simplejs_insert_children_ast_to_parent(binary_ast, right);
+
+    *out = binary_ast;
+
+result:
+    return status;
+}
 
 static simplejs_token_t *simplejs_token_next(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token)
 {
@@ -49,14 +246,6 @@ static simplejs_token_t *simplejs_token_peek(simplejs_parser_ctx_t *parser_ctx, 
     simplejs_token_t *token = simplejs_get_list_entry_structure(*start_token);
     return token;
 }
-
-typedef struct local_scoped
-{
-    bool is_function, is_argument;
-
-    uint32_t reference;
-    simplejs_utf8_string_t *string;
-} local_scoped_t;
 
 static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out)
 {
@@ -165,86 +354,29 @@ result:
     return status;
 }
 
-static simplejs_ast_node_type_t inc_dec_table[2][2] = {
-    {
-        SIMPLEJS_AST_NODE_TYPE_ALU_ASSIGN_INC,
-        SIMPLEJS_AST_NODE_TYPE_ALU_ASSIGN_DEC,
-    },
-    {
-        SIMPLEJS_AST_NODE_TYPE_ALU_INC_ASSIGN,
-        SIMPLEJS_AST_NODE_TYPE_ALU_DEC_ASSIGN,
-    },
-};
-
-static simplejs_ast_node_t *simplejs_alloc_inc_dec_node(simplejs_ast_node_t *reference, bool is_dec, bool assign_after_operation)
-{
-    simplejs_ast_node_type_t type = inc_dec_table[assign_after_operation][is_dec];
-    simplejs_ast_node_t *operation_ast = NULL;
-    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-
-    SIMPLEJS_ASSERT(reference != NULL);
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(type, &operation_ast), result, status);
-
-    simplejs_insert_tail_list(&operation_ast->children_list_entry, &reference->list_entry);
-
-result:
-    return operation_ast;
-}
-
-static simplejs_status_t simplejs_nud(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, simplejs_token_t *token)
-{
-    simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
-
-    if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
-    {
-        status = simplejs_alloc_identifier_node(parser_ctx, out, token, false);
-        return status;
-    }
-
-    if (token->type == SIMPLEJS_TOKEN_TYPE_NUMBER)
-    {
-        status = simplejs_alloc_number_node(parser_ctx, out, token);
-        return status;
-    }
-
-    if (simplejs_check_token_operator(token, "("))
-    {
-        simplejs_parser_printf("starting sub-expression\n");
-
-        status = simplejs_parse_expression(parser_ctx, start_token, out, 0);
-        simplejs_token_next(parser_ctx, start_token);
-
-        simplejs_parser_printf("ending sub-expression\n");
-        return status;
-    }
-
-    // if (simplejs_check_token_operator(token, "~") ||
-    //     simplejs_check_token_operator(token, "-") ||
-    //     simplejs_check_token_operator(token, "!"))
-    //{
-    //     int rbp = 100;
-    //
-    //    simplejs_ast_node_t *operand = parse_expression(parser_ctx, start_token, rbp);
-    //
-    //    return make_unary_node(token, operand);
-    //}
-
-    simplejs_parser_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-    simplejs_parser_printf("token->string = \"%s\"\n", token->string->buffer);
-
-    simplejs_parser_printf("unexpected token in expression\n");
-    return status;
-}
-
 static void simplejs_get_binding_power(simplejs_token_t *operator, int *lbp, int *rbp)
 {
+    if (simplejs_check_token_operator(operator, "("))
+    {
+        *lbp = 0;
+        *rbp = 1;
+        return;
+    }
+
     if (simplejs_check_token_operator(operator, "=") ||
         simplejs_check_token_operator(operator, "+=") ||
         simplejs_check_token_operator(operator, "-="))
     {
-        *lbp = 2;
-        *rbp = 1;
+        *lbp = 3;
+        *rbp = 2;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "++") ||
+        simplejs_check_token_operator(operator, "--"))
+    {
+        *lbp = 11;
+        *rbp = 10;
         return;
     }
 
@@ -272,10 +404,38 @@ static void simplejs_get_binding_power(simplejs_token_t *operator, int *lbp, int
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "("))
+    if (simplejs_check_token_operator(operator, "&"))
     {
-        *lbp = 40;
-        *rbp = 41;
+        *lbp = 50;
+        *rbp = 51;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "^"))
+    {
+        *lbp = 60;
+        *rbp = 61;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "|"))
+    {
+        *lbp = 70;
+        *rbp = 71;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "&&"))
+    {
+        *lbp = 80;
+        *rbp = 81;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "||"))
+    {
+        *lbp = 90;
+        *rbp = 91;
         return;
     }
 
@@ -284,16 +444,16 @@ static void simplejs_get_binding_power(simplejs_token_t *operator, int *lbp, int
         simplejs_check_token_operator(operator, "<") ||
         simplejs_check_token_operator(operator, ">"))
     {
-        *lbp = 50;
-        *rbp = 51;
+        *lbp = 300;
+        *rbp = 301;
         return;
     }
 
     if (simplejs_check_token_operator(operator, "==") ||
         simplejs_check_token_operator(operator, "!="))
     {
-        *lbp = 60;
-        *rbp = 61;
+        *lbp = 300;
+        *rbp = 301;
         return;
     }
 
@@ -301,19 +461,93 @@ static void simplejs_get_binding_power(simplejs_token_t *operator, int *lbp, int
     *rbp = 0;
 }
 
+static simplejs_status_t simplejs_nud(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, simplejs_token_t *token)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
+
+    if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+    {
+        status = simplejs_alloc_identifier_node(parser_ctx, out, token, false);
+        goto result;
+    }
+
+    if (token->type == SIMPLEJS_TOKEN_TYPE_NUMBER)
+    {
+        status = simplejs_alloc_number_node(parser_ctx, out, token);
+        goto result;
+    }
+
+    if (simplejs_check_token_operator(token, "("))
+    {
+        simplejs_parser_printf("starting sub-expression\n");
+
+        status = simplejs_parse_expression(parser_ctx, start_token, out, 0);
+        simplejs_token_next(parser_ctx, start_token);
+
+        simplejs_parser_printf("ending sub-expression\n");
+        goto result;
+    }
+
+    if (simplejs_check_token_operator(token, "++") ||
+        simplejs_check_token_operator(token, "--"))
+    {
+        simplejs_ast_node_type_t node_type =
+            simplejs_check_token_operator(token, "++") ? SIMPLEJS_AST_NODE_TYPE_ALU_INC : SIMPLEJS_AST_NODE_TYPE_ALU_DEC;
+
+        simplejs_ast_node_t *right;
+        simplejs_token_t *right_token = simplejs_token_next(parser_ctx, start_token);
+
+        status = simplejs_nud(parser_ctx, start_token, &right, right_token);
+        if (!SIMPLEJS_SUCCESS(status))
+            goto result;
+
+        status = simplejs_make_unary_node(token, node_type, false, out, right);
+        goto result;
+    }
+
+    // if (simplejs_check_token_operator(token, "~") ||
+    //     simplejs_check_token_operator(token, "-") ||
+    //     simplejs_check_token_operator(token, "!"))
+    //{
+    //     int rbp = 100;
+    //
+    //    simplejs_ast_node_t *operand = parse_expression(parser_ctx, start_token, rbp);
+    //
+    //    return make_unary_node(token, operand);
+    //}
+
+    simplejs_parser_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+    simplejs_parser_printf("token->string = \"%s\"\n", token->string->buffer);
+
+    simplejs_parser_printf("unexpected token in expression\n");
+
+result:
+    return status;
+}
+
 static char *expression_operators[] = {
     "=",
-    "==",
-    ">",
-    "<",
-    ".",
     "++",
     "--",
+    "~",
+    "==",
+    "!=",
+    ">",
+    "<",
+    "|",
+    "&",
+    "||",
+    "&&",
+    "<<",
+    ">>",
+    "<<<",
+    ">>>",
     "+",
     "-",
     "*",
     "/",
     "%",
+    ".",
     "(",
 };
 
@@ -332,124 +566,12 @@ static bool is_operator(simplejs_parser_ctx_t *parser_ctx, simplejs_token_t *ope
     return __is_operator(operator->string->buffer);
 }
 
-static struct operators_type_node
-{
-    char *operator;
-    simplejs_ast_node_type_t node_type;
-} binary_operators_type_node[] = {
-    {
-        .operator = ".",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS,
-    },
-    {
-        .operator = "=",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ASSIGN,
-    },
-    {
-        .operator = "+=",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_ADD_ASSIGN,
-    },
-    {
-        .operator = "-=",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SUB_ASSIGN,
-    },
-
-    {
-        .operator = "==",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL,
-    },
-    {
-        .operator = ">",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_GREATER,
-    },
-    {
-        .operator = "<",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_BELOW,
-    },
-
-    {
-        .operator = "+",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_ADD,
-    },
-    {
-        .operator = "-",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_SUB,
-    },
-    {
-        .operator = "*",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_MUL,
-    },
-    {
-        .operator = "/",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_DIV,
-    },
-    {
-        .operator = "%",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_ALU_MOD,
-    },
-    {
-        .operator = "(",
-        .node_type = SIMPLEJS_AST_NODE_TYPE_FUNCTION_CALL,
-    },
-};
-
-static simplejs_ast_node_type_t simplejs_get_node_type_for_binary_operator(simplejs_utf8_string_t *string)
-{
-    for (size_t i = 0; i < sizeof(binary_operators_type_node) / sizeof(*binary_operators_type_node); i++)
-    {
-        if (!strcmp(binary_operators_type_node[i].operator, string->buffer))
-        {
-            return binary_operators_type_node[i].node_type;
-        }
-    }
-
-    return SIMPLEJS_AST_NODE_TYPE_BINARY_OPERATOR;
-}
-
-static simplejs_status_t make_unary_node(simplejs_token_t *operator, simplejs_ast_node_type_t node_type, simplejs_ast_node_t **out, simplejs_ast_node_t *left)
-{
-    simplejs_ast_node_t *unary_ast = NULL;
-    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &unary_ast), result, status);
-    unary_ast->context = operator->string;
-
-    SIMPLEJS_ASSERT(left != NULL);
-
-    simplejs_insert_children_ast_to_parent(unary_ast, left);
-
-    *out = unary_ast;
-
-result:
-    return status;
-}
-
-static simplejs_status_t make_binary_node(simplejs_token_t *operator, simplejs_ast_node_type_t node_type, simplejs_ast_node_t **out, simplejs_ast_node_t *left, simplejs_ast_node_t *right)
-{
-    simplejs_ast_node_t *binary_ast = NULL;
-    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &binary_ast), result, status);
-    binary_ast->context = operator->string;
-
-    SIMPLEJS_ASSERT(left != NULL);
-    SIMPLEJS_ASSERT(right != NULL);
-
-    simplejs_insert_children_ast_to_parent(binary_ast, left);
-    simplejs_insert_children_ast_to_parent(binary_ast, right);
-
-    *out = binary_ast;
-
-result:
-    return status;
-}
-
 simplejs_status_t simplejs_parse_expression(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, int min_bp)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_token_t *token = simplejs_token_next(parser_ctx, start_token);
 
-    simplejs_ast_node_t *left;
+    simplejs_ast_node_t *left = NULL;
 
     simplejs_parse_expression_level++;
 
@@ -483,84 +605,98 @@ simplejs_status_t simplejs_parse_expression(simplejs_parser_ctx_t *parser_ctx, s
         simplejs_token_next(parser_ctx, start_token);
 
         simplejs_ast_node_t *right = NULL;
-        simplejs_ast_node_type_t node_type = simplejs_get_node_type_for_binary_operator(operator->string);
+
+        simplejs_ast_node_type_t unary_node_type = simplejs_get_node_type_for_unary_operator(operator->string, true);
+        simplejs_ast_node_type_t binary_node_type = simplejs_get_node_type_for_binary_operator(operator->string);
+
+        bool is_unary = unary_node_type != SIMPLEJS_AST_NODE_TYPE_UNARY_OPERATOR;
+        simplejs_ast_node_type_t node_type = is_unary ? unary_node_type : binary_node_type;
 
         simplejs_parser_printf("node_type = %u\n", node_type);
 
-        switch (node_type)
+        if (!is_unary)
         {
-        case SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS:
-        {
-            simplejs_token_t *prop = simplejs_token_next(parser_ctx, start_token);
-
-            if (prop->type != SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+            switch (node_type)
             {
-                simplejs_parser_printf("invalid format\n");
-                goto result;
-            }
-
-            status = simplejs_alloc_identifier_node(parser_ctx, &right, prop, true);
-
-            if (!SIMPLEJS_SUCCESS(status))
-                goto result;
-
-            status = make_binary_node(operator, node_type, &left, left, right);
-            break;
-        }
-
-        case SIMPLEJS_AST_NODE_TYPE_FUNCTION_CALL:
-        {
-            simplejs_parser_printf("processing function!\n");
-
-            status = make_unary_node(operator, node_type, &left, left);
-            if (!SIMPLEJS_SUCCESS(status))
-                goto result;
-
-            while (true)
+            case SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS:
             {
-                simplejs_token_t *operator;
+                simplejs_token_t *prop = simplejs_token_next(parser_ctx, start_token);
 
-                operator = simplejs_token_next(parser_ctx, start_token);
-                if (simplejs_check_token_operator(operator, ")"))
-                    break;
-                simplejs_token_prev(parser_ctx, start_token);
+                if (prop->type != SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+                {
+                    simplejs_parser_printf("invalid format\n");
+                    goto result;
+                }
 
-                simplejs_ast_node_t *arg;
+                status = simplejs_alloc_identifier_node(parser_ctx, &right, prop, true);
 
-                status = simplejs_parse_expression(parser_ctx, start_token, &arg, 0);
                 if (!SIMPLEJS_SUCCESS(status))
                     goto result;
 
-                simplejs_insert_children_ast_to_parent(left, arg);
+                status = simplejs_make_binary_node(operator, node_type, &left, left, right);
+                break;
+            }
 
-                operator = simplejs_token_next(parser_ctx, start_token);
-                if (simplejs_check_token_operator(operator, ")"))
-                    break;
+            case SIMPLEJS_AST_NODE_TYPE_FUNCTION_CALL:
+            {
+                simplejs_parser_printf("processing function!\n");
 
-                if (!simplejs_check_token_operator(operator, ","))
+                status = simplejs_make_unary_node(operator, node_type, false, &left, left);
+                if (!SIMPLEJS_SUCCESS(status))
+                    goto result;
+
+                while (true)
                 {
-                    simplejs_parser_printf("invalid call argument separator! ('%s')\n", operator->string->buffer);
-                    status = SIMPLEJS_STATUS_INVALID_TOKEN;
+                    simplejs_token_t *operator;
+
+                    operator = simplejs_token_next(parser_ctx, start_token);
+                    if (simplejs_check_token_operator(operator, ")"))
+                        break;
+                    simplejs_token_prev(parser_ctx, start_token);
+
+                    simplejs_ast_node_t *arg;
+
+                    status = simplejs_parse_expression(parser_ctx, start_token, &arg, 0);
+                    if (!SIMPLEJS_SUCCESS(status))
+                        goto result;
+
+                    simplejs_insert_children_ast_to_parent(left, arg);
+
+                    operator = simplejs_token_next(parser_ctx, start_token);
+                    if (simplejs_check_token_operator(operator, ")"))
+                        break;
+
+                    if (!simplejs_check_token_operator(operator, ","))
+                    {
+                        simplejs_parser_printf("invalid call argument separator! ('%s')\n", operator->string->buffer);
+                        status = SIMPLEJS_STATUS_INVALID_TOKEN;
+                        goto result;
+                    }
+                }
+
+                simplejs_token_next(parser_ctx, start_token);
+                break;
+            }
+
+            default:
+            {
+                status = simplejs_parse_expression(parser_ctx, start_token, &right, rbp);
+                if (!SIMPLEJS_SUCCESS(status))
+                {
+                    simplejs_parser_printf("expression error\n", simplejs_get_token_type_string(token->type));
                     goto result;
                 }
+
+                status = simplejs_make_binary_node(operator, node_type, &left, left, right);
+                break;
             }
-
-            simplejs_token_next(parser_ctx, start_token);
-            break;
+            }
         }
-
-        default:
+        else
         {
-            status = simplejs_parse_expression(parser_ctx, start_token, &right, rbp);
-            if (!SIMPLEJS_SUCCESS(status))
-            {
-                simplejs_parser_printf("expression error\n", simplejs_get_token_type_string(token->type));
-                goto result;
-            }
+            simplejs_parser_printf("processing unary\n");
 
-            status = make_binary_node(operator, node_type, &left, left, right);
-            break;
-        }
+            status = simplejs_make_unary_node(operator, node_type, true, &left, left);
         }
 
         if (!SIMPLEJS_SUCCESS(status))
@@ -570,6 +706,14 @@ simplejs_status_t simplejs_parse_expression(simplejs_parser_ctx_t *parser_ctx, s
     *out = left;
 
 result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        simplejs_parser_printf("freeing left\n");
+
+        if (left)
+            simplejs_free_ast_list(left);
+    }
+
     simplejs_parser_printf("(end) simplejs_parse_expression_level = %u\n", simplejs_parse_expression_level);
 
     simplejs_parse_expression_level--;
