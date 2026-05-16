@@ -36,8 +36,15 @@ typedef struct simplejs_compiler_ctx
     uint32_t executable_size;
 } simplejs_compiler_ctx_t;
 
+typedef struct simplejs_compiler_ast_info
+{
+    uintptr_t break_label_id;
+    uintptr_t loop_continue_label_id;
+} simplejs_compiler_ast_info_t;
+
 typedef struct simplejs_compile_reg_info
 {
+    bool is_sub_op;
     bool is_write;
     uint8_t reg_a, reg_b;
 } simplejs_compile_reg_info_t;

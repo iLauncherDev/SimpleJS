@@ -575,9 +575,23 @@ simplejs_status_t simplejs_bytecode_opcode_jmp_if_zero(simplejs_bytecode_vm_t *v
     simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
 
     uint64_t value = simplejs_variable_get_int(variable);
-    int32_t is_zero = !value;
+    int32_t condition = !value;
 
-    vm->state.instruction_pointer += instruction->imm_signed * is_zero;
+    vm->state.instruction_pointer += instruction->imm_signed * condition;
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_jmp_if_not_zero(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
+
+    uint64_t value = simplejs_variable_get_int(variable);
+    int32_t condition = !!value;
+
+    vm->state.instruction_pointer += instruction->imm_signed * condition;
 
 result:
     return status;
@@ -590,6 +604,24 @@ simplejs_status_t simplejs_bytecode_opcode_exit(simplejs_bytecode_vm_t *vm, simp
     simplejs_printf("program exited!\n");
 
 result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &vm->state.variables[instruction->reg_2];
+
+    simplejs_variable_t temp_out_var;
+    temp_out_var.type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+
+    simplejs_number_t *temp_num = &temp_out_var.value.number;
+    temp_num->type = SIMPLEJS_NUMBER_TYPE_UI32;
+    temp_num->value.ui32 = !!simplejs_variable_get_int(in);
+
+    simplejs_variable_assign(out, &temp_out_var);
+
     return status;
 }
 
@@ -649,9 +681,21 @@ result:
 simplejs_bytecode_opcode_unary_var(inc, INC);
 simplejs_bytecode_opcode_unary_var(dec, DEC);
 
+simplejs_bytecode_opcode_unary_var(not, NOT);
+simplejs_bytecode_opcode_unary_var(neg, NEG);
+
 simplejs_bytecode_opcode_binary_var(equal, EQUAL);
+simplejs_bytecode_opcode_binary_var(not_equal, NOT_EQUAL);
 simplejs_bytecode_opcode_binary_var(greater, GREATER);
 simplejs_bytecode_opcode_binary_var(below, BELOW);
+
+simplejs_bytecode_opcode_binary_var(or, OR);
+simplejs_bytecode_opcode_binary_var(and, AND);
+
+simplejs_bytecode_opcode_binary_var(shl, SHL);
+simplejs_bytecode_opcode_binary_var(shr, SHR);
+simplejs_bytecode_opcode_binary_var(sal, SAL);
+simplejs_bytecode_opcode_binary_var(sar, SAR);
 
 simplejs_bytecode_opcode_binary_var(add, ADD);
 simplejs_bytecode_opcode_binary_var(sub, SUB);
@@ -700,15 +744,30 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
 
     [SIMPLEJS_BYTECODE_OPCODE_JMP] = simplejs_bytecode_opcode_jmp,
     [SIMPLEJS_BYTECODE_OPCODE_JMP_IF_ZERO] = simplejs_bytecode_opcode_jmp_if_zero,
+    [SIMPLEJS_BYTECODE_OPCODE_JMP_IF_NOT_ZERO] = simplejs_bytecode_opcode_jmp_if_not_zero,
 
     [SIMPLEJS_BYTECODE_OPCODE_EXIT] = simplejs_bytecode_opcode_exit,
+
+    [SIMPLEJS_BYTECODE_OPCODE_CONVERT_BOOLEAN_VAR] = simplejs_bytecode_opcode_convert_boolean_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_INC_VAR] = simplejs_bytecode_opcode_inc_var,
     [SIMPLEJS_BYTECODE_OPCODE_DEC_VAR] = simplejs_bytecode_opcode_dec_var,
 
+    [SIMPLEJS_BYTECODE_OPCODE_NOT_VAR] = simplejs_bytecode_opcode_not_var,
+    [SIMPLEJS_BYTECODE_OPCODE_NEG_VAR] = simplejs_bytecode_opcode_neg_var,
+
     [SIMPLEJS_BYTECODE_OPCODE_EQUAL_VAR] = simplejs_bytecode_opcode_equal_var,
+    [SIMPLEJS_BYTECODE_OPCODE_NOT_EQUAL_VAR] = simplejs_bytecode_opcode_not_equal_var,
     [SIMPLEJS_BYTECODE_OPCODE_GREATER_VAR] = simplejs_bytecode_opcode_greater_var,
     [SIMPLEJS_BYTECODE_OPCODE_BELOW_VAR] = simplejs_bytecode_opcode_below_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_OR_VAR] = simplejs_bytecode_opcode_or_var,
+    [SIMPLEJS_BYTECODE_OPCODE_AND_VAR] = simplejs_bytecode_opcode_and_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_SHL_VAR] = simplejs_bytecode_opcode_shl_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SHR_VAR] = simplejs_bytecode_opcode_shr_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SAL_VAR] = simplejs_bytecode_opcode_sal_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SAR_VAR] = simplejs_bytecode_opcode_sar_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_ADD_VAR] = simplejs_bytecode_opcode_add_var,
     [SIMPLEJS_BYTECODE_OPCODE_SUB_VAR] = simplejs_bytecode_opcode_sub_var,
@@ -748,7 +807,7 @@ simplejs_status_t SIMPLEJS_API simplejs_execute_vm(simplejs_bytecode_vm_t *vm)
     simplejs_bytecode_opcode_jumptable_t opcode_handler = simplejs_bytecode_opcode_jumptable[instruction.opcode];
     if (!opcode_handler)
     {
-        status = SIMPLEJS_STATUS_PROGRAM_CRASHED;
+        status = SIMPLEJS_STATUS_INVALID_OPCODE;
         goto result;
     }
 

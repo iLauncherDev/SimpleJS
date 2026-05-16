@@ -12,8 +12,13 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ELSE);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ELSE_IF);
 
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_FOR_LOOP);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_WHILE_LOOP);
+
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_LABEL);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_GOTO);
+
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_UNARY_OPERATOR);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_BINARY_OPERATOR);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_NUMBER);
@@ -27,17 +32,27 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ASSIGN);
 
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_ASSIGN_INC);
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_ASSIGN_DEC);
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_INC_ASSIGN);
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_DEC_ASSIGN);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND);
 
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_ADD_ASSIGN);
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_SUB_ASSIGN);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_INC);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_DEC);
+
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_NOT);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_NEG);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_NOT_EQUAL);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_GREATER);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_BELOW);
+
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_OR);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_AND);
+
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_SHL);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_SHR);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_SAL);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_SAR);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_ADD);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_SUB);
@@ -578,6 +593,30 @@ result:
     return status;
 }
 
+static simplejs_status_t simplejs_add_while_loop_ast(simplejs_parser_ctx_t *parser_ctx)
+{
+    simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
+    simplejs_ast_scope_context_t *current_scope_context = current_function_context->current_scope_stack;
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_ast_node_t *while_loop_ast = NULL;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_WHILE_LOOP, &while_loop_ast), result, status);
+
+    simplejs_add_children_ast(parser_ctx, while_loop_ast);
+    simplejs_push_ast_to_stack(parser_ctx, while_loop_ast);
+
+    parser_ctx->state = SIMPLEJS_PARSER_STATE_WHILE_LOOP_ARGS;
+
+result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        if (while_loop_ast)
+            simplejs_hook_mfree(while_loop_ast);
+    }
+
+    return status;
+}
+
 static simplejs_status_t simplejs_add_label_ast(simplejs_parser_ctx_t *parser_ctx)
 {
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
@@ -708,6 +747,8 @@ void simplejs_free_ast_list(simplejs_ast_node_t *node)
     simplejs_list_entry_t *end_ast = &node->children_list_entry;
     simplejs_list_entry_t *current_ast = end_ast->next;
 
+    simplejs_printf("freeing node of '%s' type\n", simplejs_get_ast_node_type_string(node->type));
+
     while (current_ast != end_ast)
     {
         simplejs_list_entry_t *next_ast = current_ast->next;
@@ -755,7 +796,7 @@ void simplejs_free_ast_list(simplejs_ast_node_t *node)
     // SIMPLEJS_ASSERT(false && "simplejs_free_ast_list in the works");
 }
 
-void simplejs_free_parser_ctx(simplejs_parser_ctx_t *parser_ctx)
+void SIMPLEJS_API simplejs_free_parser_ctx(simplejs_parser_ctx_t *parser_ctx)
 {
     simplejs_free_ast_list(parser_ctx->root_ast);
 
@@ -988,6 +1029,12 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             if (simplejs_check_token_keyword(token, "else"))
             {
                 SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_branch_ast(parser_ctx, SIMPLEJS_AST_NODE_TYPE_ELSE, SIMPLEJS_PARSER_STATE_BRANCH_ELSE, true), result, status);
+                break;
+            }
+
+            if (simplejs_check_token_keyword(token, "while"))
+            {
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_while_loop_ast(parser_ctx), result, status);
                 break;
             }
 
@@ -1331,6 +1378,64 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_WHILE_LOOP_ARGS:
+        {
+            if (simplejs_check_token_operator(token, "("))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_WHILE_LOOP_CONDITION;
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_expression_ast(parser_ctx), result, status);
+                break;
+            }
+
+            simplejs_printf("invalid token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_WHILE_LOOP_CONDITION:
+        {
+            if (simplejs_check_token_operator(token, ")"))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_WHILE_LOOP_CODE;
+                break;
+            }
+
+            simplejs_printf("invalid token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_WHILE_LOOP_CODE:
+        {
+            if (simplejs_check_token_operator(token, "{"))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_WHILE_LOOP_END;
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_codeblock_ast(parser_ctx), result, status);
+                break;
+            }
+
+            simplejs_printf("invalid token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_WHILE_LOOP_END:
+        {
+            current_token = current_token->prev;
+
+            simplejs_pop_ast_from_stack(parser_ctx);
+            break;
         }
 
         default:

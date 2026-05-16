@@ -23,18 +23,26 @@ var result = 2;
 
 label loop;
 
-if (result)
+
+var index = 1;
+var max_iteration = 1000000;
+
+while (index < max_iteration || index == max_iteration)
 {
-    test_plugin_function(((a % b) + 1) == b, a, b);
-}
-else
-{
-    goto end_thing;
+    test_plugin_function(index);
+
+    index++;
 }
 
-a = a + 1;
 
-goto loop;
+//if (result)
+//{
+//    test_plugin_function(((a % b) + 1) == b, a, b);
+//}
+//else
+//{
+//    goto end_thing;
+//}
 
 label end_thing;
 
