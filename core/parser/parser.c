@@ -617,6 +617,30 @@ result:
     return status;
 }
 
+static simplejs_status_t simplejs_add_for_loop_ast(simplejs_parser_ctx_t *parser_ctx)
+{
+    simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
+    simplejs_ast_scope_context_t *current_scope_context = current_function_context->current_scope_stack;
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_ast_node_t *for_loop_ast = NULL;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_FOR_LOOP, &for_loop_ast), result, status);
+
+    simplejs_add_children_ast(parser_ctx, for_loop_ast);
+    simplejs_push_ast_to_stack(parser_ctx, for_loop_ast);
+
+    parser_ctx->state = SIMPLEJS_PARSER_STATE_FOR_LOOP_ARGS;
+
+result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        if (for_loop_ast)
+            simplejs_hook_mfree(for_loop_ast);
+    }
+
+    return status;
+}
+
 static simplejs_status_t simplejs_add_label_ast(simplejs_parser_ctx_t *parser_ctx)
 {
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
@@ -942,6 +966,43 @@ void simplejs_dump_ast_tree(simplejs_parser_ctx_t *parser_ctx)
     simplejs_dump_ast_node(&parser_ctx->root_ast->children_list_entry, 0);
 }
 
+static simplejs_status_t check_var_expression(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **current_token)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_token_t *token = simplejs_get_list_entry_structure(*current_token);
+
+    if (simplejs_check_token_keyword(token, "var"))
+    {
+        simplejs_printf("vars to be done!\n");
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_ast(parser_ctx), result, status);
+        goto result;
+    }
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_expression_ast(parser_ctx), result, status);
+    (*current_token) = (*current_token)->prev;
+
+result:
+    return status;
+}
+
+static simplejs_status_t check_code_expression(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **current_token)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_token_t *token = simplejs_get_list_entry_structure(*current_token);
+
+    if (simplejs_check_token_operator(token, "{"))
+    {
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_codeblock_ast(parser_ctx), result, status);
+        goto result;
+    }
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_expression_ast(parser_ctx), result, status);
+    (*current_token) = (*current_token)->prev;
+
+result:
+    return status;
+}
+
 simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *token_ctx, simplejs_parser_ctx_t **out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -1038,6 +1099,12 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
+            if (simplejs_check_token_keyword(token, "for"))
+            {
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_for_loop_ast(parser_ctx), result, status);
+                break;
+            }
+
             if (simplejs_check_token_operator(token, "{"))
             {
                 SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_codeblock_ast(parser_ctx), result, status);
@@ -1104,19 +1171,10 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
         case SIMPLEJS_PARSER_STATE_BRANCH_CODE:
         {
         branch_code:
-            if (simplejs_check_token_operator(token, "{"))
-            {
-                parser_ctx->state = SIMPLEJS_PARSER_STATE_BRANCH_END;
-                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_codeblock_ast(parser_ctx), result, status);
-                break;
-            }
+            parser_ctx->state = SIMPLEJS_PARSER_STATE_BRANCH_END;
+            SIMPLEJS_REQUIRE_SUCCESS(check_code_expression(parser_ctx, &current_token), result, status);
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
-
-            status = SIMPLEJS_STATUS_INVALID_TOKEN;
-            goto result;
+            break;
         }
 
         case SIMPLEJS_PARSER_STATE_BRANCH_END:
@@ -1415,10 +1473,28 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
 
         case SIMPLEJS_PARSER_STATE_WHILE_LOOP_CODE:
         {
-            if (simplejs_check_token_operator(token, "{"))
+            parser_ctx->state = SIMPLEJS_PARSER_STATE_WHILE_LOOP_END;
+            SIMPLEJS_REQUIRE_SUCCESS(check_code_expression(parser_ctx, &current_token), result, status);
+
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_WHILE_LOOP_END:
+        {
+            current_token = current_token->prev;
+
+            simplejs_pop_ast_from_stack(parser_ctx);
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_FOR_LOOP_ARGS:
+        {
+            if (simplejs_check_token_operator(token, "("))
             {
-                parser_ctx->state = SIMPLEJS_PARSER_STATE_WHILE_LOOP_END;
-                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_codeblock_ast(parser_ctx), result, status);
+                current_token = current_token->next;
+
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_FOR_LOOP_INIT;
+                SIMPLEJS_REQUIRE_SUCCESS(check_var_expression(parser_ctx, &current_token), result, status);
                 break;
             }
 
@@ -1430,7 +1506,65 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             goto result;
         }
 
-        case SIMPLEJS_PARSER_STATE_WHILE_LOOP_END:
+        case SIMPLEJS_PARSER_STATE_FOR_LOOP_INIT:
+        {
+            if (simplejs_check_token_operator(token, ";"))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_FOR_LOOP_CONDITION;
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_expression_ast(parser_ctx), result, status);
+                break;
+            }
+
+            simplejs_printf("invalid token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_FOR_LOOP_CONDITION:
+        {
+            if (simplejs_check_token_operator(token, ";"))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_FOR_LOOP_STEP;
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_expression_ast(parser_ctx), result, status);
+                break;
+            }
+
+            simplejs_printf("invalid token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_FOR_LOOP_STEP:
+        {
+            if (simplejs_check_token_operator(token, ")"))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_FOR_LOOP_CODE;
+                break;
+            }
+
+            simplejs_printf("invalid token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_FOR_LOOP_CODE:
+        {
+            parser_ctx->state = SIMPLEJS_PARSER_STATE_FOR_LOOP_END;
+            SIMPLEJS_REQUIRE_SUCCESS(check_code_expression(parser_ctx, &current_token), result, status);
+
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_FOR_LOOP_END:
         {
             current_token = current_token->prev;
 
