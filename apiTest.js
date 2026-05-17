@@ -9,11 +9,13 @@
 //var b = 2;
 //var result = a + b;
 
-function my_function(a, b)
+function my_function(a)
 {
     //var result;
 //
     //result = 20;
+
+    return (a + 5.31) * 0.2345;
 }
 
 var a = 0;
@@ -27,7 +29,7 @@ var max_iteration = 1000000;
 
 for (var index = 0; index <= max_iteration; index+=max_iteration/100)
 {
-    test_plugin_function(index);
+    test_plugin_function(my_function(index));
 }
 
 //if (result)
