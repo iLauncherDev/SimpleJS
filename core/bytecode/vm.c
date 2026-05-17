@@ -28,6 +28,14 @@ result:
     return status;
 }
 
+void SIMPLEJS_API simplejs_destroy_vm(simplejs_bytecode_vm_t *vm)
+{
+    if (vm->stack)
+        simplejs_hook_mfree(vm->stack);
+
+    simplejs_hook_mfree(vm);
+}
+
 static simplejs_status_t simplejs_check_stack_pointer(simplejs_bytecode_vm_t *vm, void *pointer, uintptr_t structure_size)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_STACK_OUT_OF_BOUNDS;

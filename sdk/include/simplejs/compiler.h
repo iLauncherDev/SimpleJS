@@ -5,4 +5,5 @@
 typedef struct simplejs_compiler_ctx simplejs_compiler_ctx_t;
 #endif
 
+void SIMPLEJS_API simplejs_free_compiler_ctx(simplejs_compiler_ctx_t *compiler_ctx);
 simplejs_status_t SIMPLEJS_API simplejs_ast_to_bytecode(simplejs_parser_ctx_t *parser_ctx, simplejs_compiler_ctx_t **out);

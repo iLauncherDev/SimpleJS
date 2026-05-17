@@ -1,6 +1,7 @@
 #pragma once
 #include "bytecode.h"
 #include "object.h"
+#include <simplejs/vm.h>
 
 typedef struct simplejs_bytecode_context
 {
@@ -27,14 +28,10 @@ typedef struct simplejs_bytecode_vm_state
     simplejs_variable_t global_variable;
 } simplejs_bytecode_vm_state_t;
 
-typedef struct simplejs_bytecode_vm
+struct simplejs_bytecode_vm
 {
     simplejs_bytecode_vm_state_t state;
 
     uint8_t *stack;
     size_t stack_size;
-} simplejs_bytecode_vm_t;
-
-simplejs_status_t SIMPLEJS_API simplejs_create_vm(simplejs_bytecode_vm_t **out);
-void SIMPLEJS_API simplejs_reset_vm(simplejs_bytecode_vm_t *vm);
-simplejs_status_t SIMPLEJS_API simplejs_execute_vm(simplejs_bytecode_vm_t *vm);
+};
