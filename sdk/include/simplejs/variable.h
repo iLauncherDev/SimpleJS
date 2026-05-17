@@ -61,9 +61,22 @@ typedef struct simplejs_variable
 typedef struct simplejs_function_header
 {
     uint32_t argument_count;
+    simplejs_variable_t this_variable;
     simplejs_variable_t arguments[];
 } simplejs_function_header_t;
 
 uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable);
+
+void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, char **out);
+
+void SIMPLEJS_API simplejs_variable_dereference(simplejs_variable_t *variable);
+void SIMPLEJS_API simplejs_variable_reference(simplejs_variable_t *variable);
+void SIMPLEJS_API simplejs_variable_lock_gc(simplejs_variable_t *variable);
+void SIMPLEJS_API simplejs_variable_release_gc(simplejs_variable_t *variable);
+
+void SIMPLEJS_API simplejs_variable_init_number(simplejs_variable_t *variable, simplejs_number_t *number);
+void SIMPLEJS_API simplejs_variable_init_object(simplejs_variable_t *variable, void *object);
+void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable, simplejs_function_t *function);
+void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, char *fast_string);
 
 void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, simplejs_variable_t *new_variable);

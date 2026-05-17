@@ -20,6 +20,9 @@ typedef simplejs_status_t (*simplejs_proxy_delete_property_f)(simplejs_raw_objec
 
 typedef simplejs_status_t (*simplejs_proxy_get_string_f)(simplejs_raw_object_t *pointer, char **out);
 
+simplejs_status_t SIMPLEJS_API simplejs_alloc_proxy(simplejs_proxy_t **out);
+void SIMPLEJS_API simplejs_free_proxy(simplejs_proxy_t *proxy);
+
 #ifndef SIMPLEJS_CORE
 #define _simplejs_proxy_set_name_callback(name) \
     void SIMPLEJS_API simplejs_proxy_set_##name##_callback(simplejs_proxy_t *proxy, simplejs_proxy_##name##_f callback)

@@ -6,6 +6,8 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
     {
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_EXPRESSION);
 
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_RETURN);
+
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_BRANCH);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_IF);
@@ -755,6 +757,28 @@ result:
     return status;
 }
 
+static simplejs_status_t simplejs_add_return_ast(simplejs_parser_ctx_t *parser_ctx)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_ast_node_t *return_ast = NULL;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_RETURN, &return_ast), result, status);
+
+    simplejs_add_children_ast(parser_ctx, return_ast);
+    simplejs_push_ast_to_stack(parser_ctx, return_ast);
+
+    parser_ctx->state = SIMPLEJS_PARSER_STATE_RETURN_EXPRESSION;
+
+result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        if (return_ast)
+            simplejs_hook_mfree(return_ast);
+    }
+
+    return status;
+}
+
 static void simplejs_leave_codeblock(simplejs_parser_ctx_t *parser_ctx)
 {
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
@@ -802,6 +826,7 @@ void simplejs_free_ast_list(simplejs_ast_node_t *node)
     }
     skip_function_context:
 
+    case SIMPLEJS_AST_NODE_TYPE_LABEL:
     case SIMPLEJS_AST_NODE_TYPE_BRANCH:
 
     case SIMPLEJS_AST_NODE_TYPE_IF:
@@ -820,7 +845,6 @@ void simplejs_free_ast_list(simplejs_ast_node_t *node)
     }
 
     simplejs_hook_mfree(node);
-    // SIMPLEJS_ASSERT(false && "simplejs_free_ast_list in the works");
 }
 
 void SIMPLEJS_API simplejs_free_parser_ctx(simplejs_parser_ctx_t *parser_ctx)
@@ -944,7 +968,11 @@ static void simplejs_dump_ast_node(simplejs_list_entry_t *ast_list_entry, int sp
             break;
 
         case SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE:
-            simplejs_printf_space(spaces, "Argument Reference \"%s\"\n", ((simplejs_utf8_string_t *)ast->context)->buffer);
+            simplejs_printf_space(spaces, "Global Reference \"%s\"\n", ((simplejs_utf8_string_t *)ast->context)->buffer);
+            break;
+
+        case SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE:
+            simplejs_printf_space(spaces, "Property Reference \"%s\"\n", ((simplejs_utf8_string_t *)ast->context)->buffer);
             break;
 
         default:
@@ -1062,6 +1090,13 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             {
                 simplejs_printf("functions to be done!\n");
                 SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_function_ast(parser_ctx), result, status);
+                break;
+            }
+
+            if (simplejs_check_token_keyword(token, "return"))
+            {
+                simplejs_printf("functions to be done!\n");
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_return_ast(parser_ctx), result, status);
                 break;
             }
 
@@ -1345,36 +1380,6 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             break;
         }
 
-        case SIMPLEJS_PARSER_STATE_EXPRESSION:
-        {
-            simplejs_printf("start expression token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
-
-            simplejs_ast_node_t *expression;
-
-            status = simplejs_parse_expression(parser_ctx, &current_token, &expression, 0);
-            if (!SIMPLEJS_SUCCESS(status))
-            {
-                goto result;
-            }
-
-            simplejs_add_children_ast(parser_ctx, expression);
-
-            token = simplejs_get_list_entry_structure(current_token);
-
-            simplejs_printf("ended expression tokens!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string ? (char *)token->string->buffer : "NULL");
-
-            current_token = current_token->prev;
-
-            simplejs_pop_ast_from_stack(parser_ctx);
-
-            simplejs_printf("%u\n", parser_ctx->state);
-            break;
-        }
-
         case SIMPLEJS_PARSER_STATE_LABEL_NAME:
         {
             simplejs_ast_label_context_t *label_context = parser_ctx->current_ast_stack->context;
@@ -1568,6 +1573,53 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
         }
 
         case SIMPLEJS_PARSER_STATE_FOR_LOOP_END:
+        {
+            current_token = current_token->prev;
+
+            simplejs_pop_ast_from_stack(parser_ctx);
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_EXPRESSION:
+        {
+            simplejs_printf("start expression token!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+
+            simplejs_ast_node_t *expression;
+
+            status = simplejs_parse_expression(parser_ctx, &current_token, &expression, 0);
+            if (!SIMPLEJS_SUCCESS(status))
+            {
+                goto result;
+            }
+
+            simplejs_add_children_ast(parser_ctx, expression);
+
+            token = simplejs_get_list_entry_structure(current_token);
+
+            simplejs_printf("ended expression tokens!\n");
+            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
+            simplejs_printf("token->string = \"%s\"\n", token->string ? (char *)token->string->buffer : "NULL");
+
+            current_token = current_token->prev;
+
+            simplejs_pop_ast_from_stack(parser_ctx);
+
+            simplejs_printf("%u\n", parser_ctx->state);
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_RETURN_EXPRESSION:
+        {
+            current_token = current_token->prev;
+
+            parser_ctx->state = SIMPLEJS_PARSER_STATE_RETURN_END;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_expression_ast(parser_ctx), result, status);
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_RETURN_END:
         {
             current_token = current_token->prev;
 

@@ -6,9 +6,11 @@ typedef enum
     SIMPLEJS_NUMBER_TYPE_UNDEFINED,
     SIMPLEJS_NUMBER_TYPE_NULL,
 
+    SIMPLEJS_NUMBER_TYPE_IPTR,
     SIMPLEJS_NUMBER_TYPE_I32,
     SIMPLEJS_NUMBER_TYPE_I64,
 
+    SIMPLEJS_NUMBER_TYPE_UIPTR,
     SIMPLEJS_NUMBER_TYPE_UI32,
     SIMPLEJS_NUMBER_TYPE_UI64,
 
@@ -34,9 +36,11 @@ typedef struct simplejs_number
     {
         uint64_t generic;
 
+        intptr_t iptr;
         int32_t i32;
         int64_t i64;
 
+        uintptr_t uiptr;
         uint32_t ui32;
         uint64_t ui64;
 
@@ -48,3 +52,8 @@ typedef struct simplejs_number
 #pragma pack(pop)
 
 static_assert(sizeof(simplejs_number_t) == SIMPLEJS_NUMBER_SIZE);
+
+float SIMPLEJS_API simplejs_number_get_float32(simplejs_number_t *number);
+double SIMPLEJS_API simplejs_number_get_float64(simplejs_number_t *number);
+uint32_t SIMPLEJS_API simplejs_number_get_int32(simplejs_number_t *number);
+uint64_t SIMPLEJS_API simplejs_number_get_int64(simplejs_number_t *number);

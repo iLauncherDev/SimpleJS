@@ -29,6 +29,8 @@ void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object);
 void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object);
 
 // object proxy functions
+simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object);
+
 simplejs_status_t SIMPLEJS_API simplejs_object_lock_property_list(simplejs_object_t *object);
 simplejs_status_t SIMPLEJS_API simplejs_object_unlock_property_list(simplejs_object_t *object);
 simplejs_status_t SIMPLEJS_API simplejs_object_get_property_list(simplejs_object_t *object, simplejs_list_entry_t **property_list);

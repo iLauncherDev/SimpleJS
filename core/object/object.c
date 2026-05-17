@@ -61,6 +61,13 @@ void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
 }
 
 // object proxy functions
+simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    return simplejs_proxy_release(object->proxy, object->pointer);
+}
+
 simplejs_status_t SIMPLEJS_API simplejs_object_lock_property_list(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);

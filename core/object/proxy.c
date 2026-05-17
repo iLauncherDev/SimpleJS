@@ -4,12 +4,33 @@
     if (func)                                            \
         status = func(__VA_ARGS__);
 
-#define _simplejs_proxy_set_name_callback(name)                                                                                  \
+simplejs_status_t SIMPLEJS_API simplejs_alloc_proxy(simplejs_proxy_t **out)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_proxy_t *proxy = simplejs_hook_malloc(sizeof(*proxy));
+    if (!proxy)
+    {
+        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
+        goto result;
+    }
+
+    memclr(proxy, sizeof(*proxy));
+
+result:
+    return status;
+}
+
+void SIMPLEJS_API simplejs_free_proxy(simplejs_proxy_t *proxy)
+{
+    simplejs_hook_mfree(proxy);
+}
+
+#define _simplejs_proxy_set_name_callback(name)                                                                         \
     void SIMPLEJS_API simplejs_proxy_set_##name##_callback(simplejs_proxy_t *proxy, simplejs_proxy_##name##_f callback) \
-    {                                                                                                                            \
-        SIMPLEJS_ASSERT(proxy != NULL);                                                                                                   \
-                                                                                                                                 \
-        proxy->f_##name = callback;                                                                                              \
+    {                                                                                                                   \
+        SIMPLEJS_ASSERT(proxy != NULL);                                                                                 \
+                                                                                                                        \
+        proxy->f_##name = callback;                                                                                     \
     }
 
 _simplejs_proxy_set_name_callback(release);
