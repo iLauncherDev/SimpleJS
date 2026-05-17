@@ -153,6 +153,7 @@ int processArgs(int argc, char **argv)
 
             entry->name = argv_window[1];
             simplejs_init_list_entry(&entry->list_entry, entry);
+            simplejs_insert_tail_list(&plugin_list, &entry->list_entry);
 
             if (!SIMPLEJS_SUCCESS(simplejs_load_shared_lib(entry->name, &entry->shared_lib)))
             {
@@ -165,8 +166,6 @@ int processArgs(int argc, char **argv)
                 printf("cannot load plugin function\n");
                 return 1;
             }
-
-            simplejs_insert_tail_list(&plugin_list, &entry->list_entry);
         }
     }
 
@@ -199,6 +198,8 @@ int main(int argc, char **argv)
     simplejs_token_ctx_t *token_ctx = NULL;
     simplejs_parser_ctx_t *parser_ctx = NULL;
     simplejs_compiler_ctx_t *compiler_ctx = NULL;
+    simplejs_bytecode_vm_t *vm = NULL;
+    simplejs_object_t *global_object = NULL;
     simplejs_utf8_string_t *code = NULL;
     simplejs_thread_t *gc_thread = NULL;
 
@@ -273,9 +274,6 @@ int main(int argc, char **argv)
         fclose(file);
     }
 
-    simplejs_object_t *global_object;
-    simplejs_bytecode_vm_t *vm;
-
     status = simplejs_builtin_create_dynamic_object(&global_object);
     if (!SIMPLEJS_SUCCESS(status))
     {
@@ -341,28 +339,33 @@ int main(int argc, char **argv)
     printf("vm exited with '%s' on %f seconds\n", simplejs_get_status_string(status), elapsed_time);
 
 result:
-    if (!SIMPLEJS_SUCCESS(status))
+    if (global_object)
+        simplejs_object_dereference(global_object);
+
+    if (vm)
+        simplejs_destroy_vm(vm);
+
+    if (compiler_ctx)
+        simplejs_free_compiler_ctx(compiler_ctx);
+
+    if (parser_ctx)
+        simplejs_free_parser_ctx(parser_ctx);
+
+    if (token_ctx)
+        simplejs_free_token_ctx(token_ctx);
+
+    if (gc_thread)
     {
-        if (compiler_ctx)
-            simplejs_free_compiler_ctx(compiler_ctx);
-
-        if (parser_ctx)
-            simplejs_free_parser_ctx(parser_ctx);
-
-        if (token_ctx)
-            simplejs_free_token_ctx(token_ctx);
-
-        if (gc_thread)
-        {
-            run_gc_thread = false;
-            simplejs_destroy_thread(gc_thread);
-        }
-
-        if (code)
-            free(code);
-
-        free_plugin_list();
+        run_gc_thread = false;
+        simplejs_destroy_thread(gc_thread);
     }
+
+    if (code)
+        free(code);
+
+    free_plugin_list();
+
+    simplejs_uninit();
 
     printf("pointers allocated %d\n", get_memory_amount());
     return 0;

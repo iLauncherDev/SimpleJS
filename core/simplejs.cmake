@@ -14,6 +14,14 @@ block()
 
         ${SIMPLEJS_PATH}/lib/s_string.c
 
+        ${SIMPLEJS_PATH}/number/alu-iptr.c
+        ${SIMPLEJS_PATH}/number/alu-i32.c
+        ${SIMPLEJS_PATH}/number/alu-i64.c
+
+        ${SIMPLEJS_PATH}/number/alu-uiptr.c
+        ${SIMPLEJS_PATH}/number/alu-ui32.c
+        ${SIMPLEJS_PATH}/number/alu-ui64.c
+
         ${SIMPLEJS_PATH}/number/alu-f32.c
         ${SIMPLEJS_PATH}/number/alu-f64.c
 

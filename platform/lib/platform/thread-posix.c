@@ -32,5 +32,5 @@ result:
 
 void simplejs_platform_destroy_thread(simplejs_thread_t *thread)
 {
-    return;
+    pthread_join((pthread_t)((uintptr_t)thread->context), NULL);
 }

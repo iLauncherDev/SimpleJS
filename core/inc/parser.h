@@ -7,6 +7,8 @@ typedef enum
 {
     SIMPLEJS_AST_NODE_TYPE_EXPRESSION,
 
+    SIMPLEJS_AST_NODE_TYPE_RETURN,
+
     SIMPLEJS_AST_NODE_TYPE_BRANCH,
 
     SIMPLEJS_AST_NODE_TYPE_IF,
@@ -113,6 +115,9 @@ typedef enum
     SIMPLEJS_PARSER_STATE_FOR_LOOP_END,
 
     SIMPLEJS_PARSER_STATE_EXPRESSION,
+
+    SIMPLEJS_PARSER_STATE_RETURN_EXPRESSION,
+    SIMPLEJS_PARSER_STATE_RETURN_END,
 } simplejs_parser_state_t;
 
 typedef struct simplejs_ast_node
@@ -201,5 +206,6 @@ struct simplejs_parser_ctx
     simplejs_ast_function_context_t *current_function_context_stack;
 };
 
+const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type);
 simplejs_status_t simplejs_parse_expression(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, int min_bp);
 void simplejs_free_ast_list(simplejs_ast_node_t *node);

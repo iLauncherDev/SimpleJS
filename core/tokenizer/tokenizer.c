@@ -46,6 +46,11 @@ char *composite_list_string[] = {
     "-=",
     "*=",
     "/=",
+    "%=",
+    "<<=",
+    ">>=",
+    "<<<=",
+    ">>>=",
 
     "=>",
 
@@ -781,7 +786,59 @@ static simplejs_status_t simplejs_add_token(simplejs_token_ctx_t *ctx, simplejs_
             token->type = SIMPLEJS_TOKEN_TYPE_NUMBER;
     }
 
-    if (token->type == SIMPLEJS_TOKEN_TYPE_NUMBER)
+    if (token->type == SIMPLEJS_TOKEN_TYPE_EXPR_KEYWORD)
+    {
+        bool is_true = !strcmp(string->buffer, "true");
+
+        simplejs_utf8_string_t *string = token->string;
+
+        if (is_true ||
+            !strcmp(string->buffer, "false"))
+        {
+            token->type = SIMPLEJS_TOKEN_TYPE_NUMBER;
+            token->number.type = SIMPLEJS_NUMBER_TYPE_DEFAULT;
+
+            switch (token->number.type)
+            {
+            case SIMPLEJS_NUMBER_TYPE_F64:
+                token->number.value.f64 = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_F32:
+                token->number.value.f32 = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_UI64:
+                token->number.value.ui64 = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_UI32:
+                token->number.value.ui32 = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_UIPTR:
+                token->number.value.uiptr = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_I64:
+                token->number.value.i64 = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_I32:
+                token->number.value.i32 = is_true;
+                break;
+
+            case SIMPLEJS_NUMBER_TYPE_IPTR:
+                token->number.value.iptr = is_true;
+                break;
+
+            default:
+                SIMPLEJS_ASSERT("unhandled token->number.type!" && false);
+                break;
+            }
+        }
+    }
+    else if (token->type == SIMPLEJS_TOKEN_TYPE_NUMBER)
     {
         status = simplejs_process_number(ctx, token);
         if (!SIMPLEJS_SUCCESS(status))
@@ -906,7 +963,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokenize(simplejs_utf8_string_t *code, s
     }
 
     ctx->code = code;
-    simplejs_reset_state(ctx);
+    ctx->state = SIMPLEJS_TOKEN_STATE_IDLE;
 
     SIMPLEJS_ASSERT(code != NULL);
     SIMPLEJS_ASSERT(out != NULL);

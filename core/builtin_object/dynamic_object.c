@@ -4,7 +4,10 @@ typedef struct simplejs_dynamic_object_raw
 {
     atomic_bool property_lock;
     simplejs_list_entry_t property_list;
+    bool read_only;
 } simplejs_dynamic_object_raw_t;
+
+simplejs_status_t simplejs_dynamic_object_release(simplejs_raw_object_t *pointer);
 
 simplejs_status_t simplejs_dynamic_object_lock_property_list(simplejs_raw_object_t *pointer);
 simplejs_status_t simplejs_dynamic_object_unlock_property_list(simplejs_raw_object_t *pointer);
@@ -14,6 +17,8 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_raw_object
 simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_raw_object_t *pointer, simplejs_variable_t *property, simplejs_variable_t *in);
 
 simplejs_proxy_t dynamic_object_proxy = {
+    .f_release = simplejs_dynamic_object_release,
+
     .f_lock_property_list = simplejs_dynamic_object_lock_property_list,
     .f_unlock_property_list = simplejs_dynamic_object_unlock_property_list,
     .f_get_property_list = simplejs_dynamic_object_get_property_list,
@@ -21,6 +26,29 @@ simplejs_proxy_t dynamic_object_proxy = {
     .f_get_property_value = simplejs_dynamic_object_get_property_value,
     .f_set_property_value = simplejs_dynamic_object_set_property_value,
 };
+
+simplejs_status_t simplejs_dynamic_object_release(simplejs_raw_object_t *pointer)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_dynamic_object_raw_t *object = pointer;
+
+    simplejs_list_entry_t *end_property = &object->property_list;
+    simplejs_list_entry_t *current_property = end_property->next;
+
+    while (current_property != end_property)
+    {
+        simplejs_list_entry_t *next_property = current_property->next;
+        simplejs_object_property_t *property = simplejs_get_list_entry_structure(current_property);
+
+        simplejs_variable_dereference(&property->value);
+        simplejs_hook_mfree(property);
+
+        current_property = next_property;
+    }
+
+    simplejs_hook_mfree(object);
+    return status;
+}
 
 simplejs_status_t simplejs_dynamic_object_lock_property_list(simplejs_raw_object_t *pointer)
 {
@@ -89,7 +117,7 @@ simplejs_object_property_t *simplejs_dynamic_object_find_property(simplejs_dynam
         }
 
         char *allocated_name = (char *)((uintptr_t)ret + sizeof(*ret));
-    
+
         memclr(ret, sizeof(*ret));
         memcpy(allocated_name, name, name_size);
 
@@ -108,12 +136,15 @@ result:
 
 simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_raw_object_t *pointer, simplejs_variable_t *property, simplejs_variable_t *out)
 {
+    char tempString[4096];
+    char *name;
+
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
+
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;
 
-    SIMPLEJS_ASSERT(property->type == SIMPLEJS_VARIABLE_TYPE_FAST_STRING);
-
-    simplejs_object_property_t *object_property = simplejs_dynamic_object_find_property(object, property->value.fast_string, false);
+    simplejs_object_property_t *object_property = simplejs_dynamic_object_find_property(object, name, false);
     if (!object_property)
     {
         status = SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST;
@@ -129,12 +160,20 @@ result:
 
 simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_raw_object_t *pointer, simplejs_variable_t *property, simplejs_variable_t *in)
 {
+    char tempString[4096];
+    char *name;
+
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
+
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;
+    if (object->read_only)
+    {
+        simplejs_printf("called simplejs_dynamic_object_set_property_value on read-only mode!\n");
+        goto result;
+    }
 
-    SIMPLEJS_ASSERT(property->type == SIMPLEJS_VARIABLE_TYPE_FAST_STRING);
-
-    simplejs_object_property_t *object_property = simplejs_dynamic_object_find_property(object, property->value.fast_string, true);
+    simplejs_object_property_t *object_property = simplejs_dynamic_object_find_property(object, name, true);
     if (!object_property)
     {
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
@@ -177,4 +216,14 @@ result:
     }
 
     return status;
+}
+
+void SIMPLEJS_API simplejs_builtin_set_dynamic_object_read_only(simplejs_object_t *object, bool read_only)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+    SIMPLEJS_ASSERT(object->pointer != NULL);
+
+    simplejs_dynamic_object_raw_t *dynamic_object = object->pointer;
+
+    dynamic_object->read_only = read_only;
 }
