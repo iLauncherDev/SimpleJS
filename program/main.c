@@ -343,6 +343,9 @@ int main(int argc, char **argv)
 result:
     if (!SIMPLEJS_SUCCESS(status))
     {
+        if (compiler_ctx)
+            simplejs_free_compiler_ctx(compiler_ctx);
+
         if (parser_ctx)
             simplejs_free_parser_ctx(parser_ctx);
 
