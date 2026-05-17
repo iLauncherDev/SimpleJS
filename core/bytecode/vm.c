@@ -30,6 +30,12 @@ result:
 
 void SIMPLEJS_API simplejs_destroy_vm(simplejs_bytecode_vm_t *vm)
 {
+    simplejs_variable_t undef_var;
+    undef_var.type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+    undef_var.value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
+
+    simplejs_variable_assign(&vm->state.global_variable, &undef_var);
+
     if (vm->stack)
         simplejs_hook_mfree(vm->stack);
 
@@ -75,11 +81,11 @@ void SIMPLEJS_API simplejs_reset_vm(simplejs_bytecode_vm_t *vm)
 
 void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintptr_t instruction_pointer);
 
-static inline simplejs_status_t simplejs_get_function_header(simplejs_bytecode_vm_t *vm, simplejs_function_header_t **out)
+static inline simplejs_status_t simplejs_get_function_header(simplejs_bytecode_vm_t *vm, simplejs_function_header_t **out, uintptr_t offset)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
-    simplejs_function_header_t *function_header = (void *)(vm->stack + vm->state.argument_offset);
+    simplejs_function_header_t *function_header = (void *)(vm->stack + offset);
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_struct(vm, function_header), result, status);
 
@@ -259,14 +265,31 @@ simplejs_status_t simplejs_bytecode_opcode_free_args(simplejs_bytecode_vm_t *vm,
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_pointer(vm, function_header, function_header_size), result, status);
 
+    simplejs_variable_t undef_variable;
+    undef_variable.type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+    undef_variable.value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
+
+    simplejs_variable_assign(&function_header->this_variable, &undef_variable);
+
     for (size_t i = 0; i < instruction->imm; i++)
     {
-        simplejs_variable_t undef_variable;
-        undef_variable.type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
-        undef_variable.value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
-
         simplejs_variable_assign(&function_header->arguments[i], &undef_variable);
     }
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_init_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t *variable = &vm->state.variables[instruction->imm & 0x0F];
+
+    simplejs_number_t tmp_num = {.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED};
+
+    simplejs_variable_dereference(variable);
+    simplejs_variable_init_number(variable, &tmp_num);
 
 result:
     return status;
@@ -280,7 +303,10 @@ simplejs_status_t simplejs_bytecode_opcode_init_loc_var(simplejs_bytecode_vm_t *
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_struct(vm, variable), result, status);
 
-    variable->type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
+    simplejs_number_t tmp_num = {.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED};
+
+    simplejs_variable_dereference(variable);
+    simplejs_variable_init_number(variable, &tmp_num);
 
 result:
     return status;
@@ -393,12 +419,12 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_bytecode_opcode_get_arg_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+simplejs_status_t simplejs_bytecode_opcode_get_call_arg_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_function_header_t *function_header;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
 
     simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
     simplejs_variable_t *in = &function_header->arguments[instruction->imm];
@@ -409,12 +435,44 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_bytecode_opcode_set_arg_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+simplejs_status_t simplejs_bytecode_opcode_set_call_arg_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_function_header_t *function_header;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
+
+    simplejs_variable_t *out = &function_header->arguments[instruction->imm];
+    simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
+
+    simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_get_func_arg_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &function_header->arguments[instruction->imm];
+
+    simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_func_arg_var(simplejs_bytecode_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
 
     simplejs_variable_t *out = &function_header->arguments[instruction->imm];
     simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
@@ -499,6 +557,7 @@ simplejs_status_t simplejs_bytecode_opcode_call_proxy(
 
     SIMPLEJS_ASSERT(function->value.proxy != NULL);
 
+    simplejs_variable_assign(&function_header->this_variable, &vm->state.variables[SIMPLEJS_BYTECODE_VARIABLE_THIS]);
     SIMPLEJS_REQUIRE_SUCCESS(function->value.proxy(function_header, out), result, status);
 
 result:
@@ -519,7 +578,7 @@ simplejs_status_t simplejs_bytecode_opcode_call(simplejs_bytecode_vm_t *vm, simp
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_function_header_t *function_header;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
 
     simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
 
@@ -641,6 +700,7 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_bytecode
                                                                                                                                           \
         if (v_a->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                                   \
         {                                                                                                                                 \
+            simplejs_printf("v_a->type is not number (%u)\n", v_a->type);                                                                 \
             status = SIMPLEJS_STATUS_PROGRAM_CRASHED;                                                                                     \
             goto result;                                                                                                                  \
         }                                                                                                                                 \
@@ -664,12 +724,14 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_bytecode
                                                                                                                                                    \
         if (v_a->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                                            \
         {                                                                                                                                          \
+            simplejs_printf("v_a->type is not number (%u)\n", v_a->type);                                                                          \
             status = SIMPLEJS_STATUS_PROGRAM_CRASHED;                                                                                              \
             goto result;                                                                                                                           \
         }                                                                                                                                          \
                                                                                                                                                    \
         if (v_b->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                                            \
         {                                                                                                                                          \
+            simplejs_printf("v_b->type is not number (%u)\n", v_b->type);                                                                          \
             status = SIMPLEJS_STATUS_PROGRAM_CRASHED;                                                                                              \
             goto result;                                                                                                                           \
         }                                                                                                                                          \
@@ -729,6 +791,7 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_ALLOC_ARGS] = simplejs_bytecode_opcode_alloc_args,
     [SIMPLEJS_BYTECODE_OPCODE_FREE_ARGS] = simplejs_bytecode_opcode_free_args,
 
+    [SIMPLEJS_BYTECODE_OPCODE_INIT_VAR] = simplejs_bytecode_opcode_init_var,
     [SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_VAR] = simplejs_bytecode_opcode_init_loc_var,
     [SIMPLEJS_BYTECODE_OPCODE_FREE_LOC_VAR] = simplejs_bytecode_opcode_free_loc_var,
 
@@ -740,8 +803,11 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR] = simplejs_bytecode_opcode_get_loc_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR] = simplejs_bytecode_opcode_set_loc_var,
 
-    [SIMPLEJS_BYTECODE_OPCODE_GET_ARG_VAR] = simplejs_bytecode_opcode_get_arg_var,
-    [SIMPLEJS_BYTECODE_OPCODE_SET_ARG_VAR] = simplejs_bytecode_opcode_set_arg_var,
+    [SIMPLEJS_BYTECODE_OPCODE_GET_CALL_ARG_VAR] = simplejs_bytecode_opcode_get_call_arg_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_ARG_VAR] = simplejs_bytecode_opcode_set_call_arg_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_get_func_arg_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_set_func_arg_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER] = simplejs_bytecode_opcode_set_var_number,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NATIVE_FUNCTION] = simplejs_bytecode_opcode_set_var_native_function,

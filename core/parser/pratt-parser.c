@@ -302,7 +302,9 @@ static simplejs_token_t *simplejs_token_peek(simplejs_parser_ctx_t *parser_ctx, 
 static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out)
 {
     simplejs_utf8_string_t *string = context;
+
     local_scoped_t *out_struct = out;
+    memclr(out_struct, sizeof(*out_struct));
 
     {
         simplejs_list_entry_t *end_var = &scope_context->var_list_entry;
@@ -314,7 +316,6 @@ static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t 
 
             if (!strcmp((char *)var->name->buffer, (char *)string->buffer))
             {
-                out_struct->is_function = false;
                 out_struct->reference = var->index;
                 return true;
             }
@@ -342,6 +343,25 @@ static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t 
 
         skip_scoped_function:
             current_function = current_function->next;
+        }
+    }
+
+    {
+        simplejs_list_entry_t *end_arg = &scope_context->arg_list_entry;
+        simplejs_list_entry_t *current_arg = end_arg->next;
+
+        while (current_arg != end_arg)
+        {
+            simplejs_token_t *arg = simplejs_get_list_entry_structure(current_arg);
+
+            if (!strcmp((char *)arg->string->buffer, (char *)string->buffer))
+            {
+                out_struct->is_argument = true;
+                out_struct->reference = arg->_arg_index;
+                return true;
+            }
+
+            current_arg = current_arg->next;
         }
     }
 
@@ -373,7 +393,11 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
         }
         else
         {
-            SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_LOCAL_REFERENCE, &identifier_ast), result, status);
+            simplejs_ast_node_type_t node_type = SIMPLEJS_AST_NODE_TYPE_LOCAL_REFERENCE;
+            if (local_scoped.is_argument)
+                node_type = SIMPLEJS_AST_NODE_TYPE_ARGUMENT_REFERENCE;
+
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &identifier_ast), result, status);
 
             identifier_ast->context = (void *)((uintptr_t)local_scoped.reference);
         }
@@ -386,6 +410,21 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
     }
 
     *out = identifier_ast;
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_alloc_string_node(simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t **out, simplejs_token_t *token)
+{
+    simplejs_ast_node_t *string_ast = NULL;
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_STRING, &string_ast), result, status);
+
+    string_ast->context = token->string;
+
+    *out = string_ast;
 
 result:
     return status;
@@ -426,75 +465,51 @@ static void simplejs_get_binding_power(simplejs_token_t *operator, int *lbp, int
         simplejs_check_token_operator(operator, "<<<=") ||
         simplejs_check_token_operator(operator, ">>>="))
     {
-        *lbp = 3;
-        *rbp = 2;
-        return;
-    }
-
-    if (simplejs_check_token_operator(operator, "++") ||
-        simplejs_check_token_operator(operator, "--"))
-    {
-        *lbp = 11;
-        *rbp = 10;
-        return;
-    }
-
-    if (simplejs_check_token_operator(operator, "+") ||
-        simplejs_check_token_operator(operator, "-"))
-    {
         *lbp = 10;
-        *rbp = 11;
+        *rbp = 9;
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "*") ||
-        simplejs_check_token_operator(operator, "/") ||
-        simplejs_check_token_operator(operator, "%"))
+    if (simplejs_check_token_operator(operator, "&&"))
     {
         *lbp = 20;
         *rbp = 21;
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "."))
+    if (simplejs_check_token_operator(operator, "||"))
     {
         *lbp = 30;
         *rbp = 31;
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "&"))
+    if (simplejs_check_token_operator(operator, "|"))
+    {
+        *lbp = 40;
+        *rbp = 41;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "^"))
     {
         *lbp = 50;
         *rbp = 51;
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "^"))
+    if (simplejs_check_token_operator(operator, "&"))
     {
         *lbp = 60;
         *rbp = 61;
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "|"))
+    if (simplejs_check_token_operator(operator, "==") ||
+        simplejs_check_token_operator(operator, "!="))
     {
         *lbp = 70;
         *rbp = 71;
-        return;
-    }
-
-    if (simplejs_check_token_operator(operator, "&&"))
-    {
-        *lbp = 80;
-        *rbp = 81;
-        return;
-    }
-
-    if (simplejs_check_token_operator(operator, "||"))
-    {
-        *lbp = 90;
-        *rbp = 91;
         return;
     }
 
@@ -503,16 +518,40 @@ static void simplejs_get_binding_power(simplejs_token_t *operator, int *lbp, int
         simplejs_check_token_operator(operator, "<") ||
         simplejs_check_token_operator(operator, ">"))
     {
-        *lbp = 300;
-        *rbp = 301;
+        *lbp = 80;
+        *rbp = 81;
         return;
     }
 
-    if (simplejs_check_token_operator(operator, "==") ||
-        simplejs_check_token_operator(operator, "!="))
+    if (simplejs_check_token_operator(operator, "+") ||
+        simplejs_check_token_operator(operator, "-"))
     {
-        *lbp = 300;
-        *rbp = 301;
+        *lbp = 90;
+        *rbp = 91;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "*") ||
+        simplejs_check_token_operator(operator, "/") ||
+        simplejs_check_token_operator(operator, "%"))
+    {
+        *lbp = 100;
+        *rbp = 101;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "++") ||
+        simplejs_check_token_operator(operator, "--"))
+    {
+        *lbp = 110;
+        *rbp = 111;
+        return;
+    }
+
+    if (simplejs_check_token_operator(operator, "."))
+    {
+        *lbp = 120;
+        *rbp = 121;
         return;
     }
 
@@ -533,6 +572,12 @@ static simplejs_status_t simplejs_nud(simplejs_parser_ctx_t *parser_ctx, simplej
     if (token->type == SIMPLEJS_TOKEN_TYPE_NUMBER)
     {
         status = simplejs_alloc_number_node(parser_ctx, out, token);
+        goto result;
+    }
+
+    if (token->type == SIMPLEJS_TOKEN_TYPE_STRING)
+    {
+        status = simplejs_alloc_string_node(parser_ctx, out, token);
         goto result;
     }
 
@@ -735,7 +780,6 @@ simplejs_status_t simplejs_process_operator(
                 }
             }
 
-            simplejs_token_next(parser_ctx, start_token);
             break;
         }
 

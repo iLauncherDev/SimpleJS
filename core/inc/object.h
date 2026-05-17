@@ -1,7 +1,6 @@
 #pragma once
 #include "default.h"
 #include "number.h"
-#include <simplejs/proxy.h>
 #include <simplejs/object.h>
 
 struct simplejs_proxy
