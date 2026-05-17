@@ -38,6 +38,8 @@ char *expr_keywords_list_string[] = {
 char *composite_list_string[] = {
     "=",
     "==",
+    "<=",
+    ">=",
     "!=",
 
     "+=",

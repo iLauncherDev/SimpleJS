@@ -25,7 +25,7 @@ label loop;
 
 var max_iteration = 1000000;
 
-for (var index = 1; index < max_iteration || index == max_iteration; index++)
+for (var index = 0; index <= max_iteration; index+=max_iteration/100)
 {
     test_plugin_function(index);
 }
@@ -38,7 +38,3 @@ for (var index = 1; index < max_iteration || index == max_iteration; index++)
 //{
 //    goto end_thing;
 //}
-
-label end_thing;
-
-globTest = a;
