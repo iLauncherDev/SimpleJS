@@ -16,3 +16,8 @@ simplejs_status_t SIMPLEJS_API simplejs_init()
 result:
     return status;
 }
+
+void SIMPLEJS_API simplejs_uninit()
+{
+    return;
+}

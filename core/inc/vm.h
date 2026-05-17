@@ -14,9 +14,8 @@ typedef struct simplejs_bytecode_context
 
 typedef struct simplejs_bytecode_vm_state
 {
-    bool vm_stopped;
-
     simplejs_variable_t variables[16];
+    simplejs_variable_t global_variable;
 
     uintptr_t stack_offset;
     uintptr_t saved_argument_offset;
@@ -25,7 +24,7 @@ typedef struct simplejs_bytecode_vm_state
 
     uintptr_t instruction_pointer;
 
-    simplejs_variable_t global_variable;
+    bool vm_stopped;
 } simplejs_bytecode_vm_state_t;
 
 struct simplejs_bytecode_vm

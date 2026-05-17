@@ -132,7 +132,23 @@ double (*simplejs_number_get_float64_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simple
     [SIMPLEJS_NUMBER_TYPE_F64] = simplejs_number_get_float64_f64,
 };
 
-uint32_t simplejs_number_get_int32(simplejs_number_t *number)
+float SIMPLEJS_API simplejs_number_get_float32(simplejs_number_t *number)
+{
+    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    SIMPLEJS_ASSERT(simplejs_number_get_float32_jumptable[number->type] != NULL);
+
+    return (uint32_t)simplejs_number_get_float32_jumptable[number->type](number);
+}
+
+double SIMPLEJS_API simplejs_number_get_float64(simplejs_number_t *number)
+{
+    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    SIMPLEJS_ASSERT(simplejs_number_get_float64_jumptable[number->type] != NULL);
+
+    return simplejs_number_get_float64_jumptable[number->type](number);
+}
+
+uint32_t SIMPLEJS_API simplejs_number_get_int32(simplejs_number_t *number)
 {
     SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
     SIMPLEJS_ASSERT(simplejs_number_get_int_jumptable[number->type] != NULL);
@@ -140,7 +156,7 @@ uint32_t simplejs_number_get_int32(simplejs_number_t *number)
     return (uint32_t)simplejs_number_get_int_jumptable[number->type](number);
 }
 
-uint64_t simplejs_number_get_int64(simplejs_number_t *number)
+uint64_t SIMPLEJS_API simplejs_number_get_int64(simplejs_number_t *number)
 {
     SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
     SIMPLEJS_ASSERT(simplejs_number_get_int_jumptable[number->type] != NULL);
