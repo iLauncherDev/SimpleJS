@@ -58,6 +58,24 @@ GENERATE_ALU_EXEC_DECL(below, ALU_NAME(INT_NAME))
     GENERATE_ALU_FLUSH_RESULT(result, out, ALU_NAME(INT_NAME), UPPER_ALU_NAME(UPPER_INT_NAME));
 }
 
+GENERATE_ALU_EXEC_DECL(greater_equal, ALU_NAME(INT_NAME))
+{
+    INT_TYPE a_int = simplejs_number_get_intXX_jumptable[a->type](a);
+    INT_TYPE b_int = simplejs_number_get_intXX_jumptable[b->type](b);
+    INT_TYPE result = a_int >= b_int;
+
+    GENERATE_ALU_FLUSH_RESULT(result, out, ALU_NAME(INT_NAME), UPPER_ALU_NAME(UPPER_INT_NAME));
+}
+
+GENERATE_ALU_EXEC_DECL(below_equal, ALU_NAME(INT_NAME))
+{
+    INT_TYPE a_int = simplejs_number_get_intXX_jumptable[a->type](a);
+    INT_TYPE b_int = simplejs_number_get_intXX_jumptable[b->type](b);
+    INT_TYPE result = a_int <= b_int;
+
+    GENERATE_ALU_FLUSH_RESULT(result, out, ALU_NAME(INT_NAME), UPPER_ALU_NAME(UPPER_INT_NAME));
+}
+
 GENERATE_ALU_EXEC_DECL(or, ALU_NAME(INT_NAME))
 {
     UINT_TYPE a_int = (UINT_TYPE)simplejs_number_get_intXX_jumptable[a->type](a);
@@ -168,6 +186,8 @@ static void (*simplejs_execute_alu_fXX_op_table[SIMPLEJS_NUMBER_ALU_END])(simple
     [SIMPLEJS_NUMBER_ALU_NOT_EQUAL] = GENERATE_ALU_EXEC_IDENTIFIER(not_equal, ALU_NAME(INT_NAME)),
     [SIMPLEJS_NUMBER_ALU_GREATER] = GENERATE_ALU_EXEC_IDENTIFIER(greater, ALU_NAME(INT_NAME)),
     [SIMPLEJS_NUMBER_ALU_BELOW] = GENERATE_ALU_EXEC_IDENTIFIER(below, ALU_NAME(INT_NAME)),
+    [SIMPLEJS_NUMBER_ALU_GREATER_EQUAL] = GENERATE_ALU_EXEC_IDENTIFIER(greater_equal, ALU_NAME(INT_NAME)),
+    [SIMPLEJS_NUMBER_ALU_BELOW_EQUAL] = GENERATE_ALU_EXEC_IDENTIFIER(below_equal, ALU_NAME(INT_NAME)),
 
     [SIMPLEJS_NUMBER_ALU_OR] = GENERATE_ALU_EXEC_IDENTIFIER(or, ALU_NAME(INT_NAME)),
     [SIMPLEJS_NUMBER_ALU_AND] = GENERATE_ALU_EXEC_IDENTIFIER(and, ALU_NAME(INT_NAME)),

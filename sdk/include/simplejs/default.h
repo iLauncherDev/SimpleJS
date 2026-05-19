@@ -10,13 +10,11 @@
 #include <assert.h>
 #include <ctype.h>
 
-// Workaround for MSVC declaration parsing issue when using SIMPLEJS_API with pointer return types
-typedef void *pvoid;
-typedef char *pchar;
-
 #include "api.h"
+#include "type.h"
 #include "hook.h"
-#include "status.h"
+#include "lib/spinlock.h"
+#include "lib/status.h"
 #include "lib/list.h"
 #include "lib/s_string.h"
 
@@ -51,3 +49,6 @@ typedef char *pchar;
 #define CASE_TO_STRING(name) \
     case name:               \
         return #name
+
+simplejs_status_t SIMPLEJS_API simplejs_init();
+void SIMPLEJS_API simplejs_uninit();

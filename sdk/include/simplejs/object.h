@@ -13,9 +13,10 @@ typedef struct simplejs_object simplejs_object_t;
 
 // object functions
 simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *pointer, simplejs_proxy_t *proxy, simplejs_object_t **out);
+void SIMPLEJS_API simplejs_free_object(simplejs_object_t *object);
 
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object);
-void SIMPLEJS_API simplejs_object_release_gc(simplejs_object_t *object);
+void SIMPLEJS_API simplejs_object_unlock_gc(simplejs_object_t *object);
 
 void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object);
 void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object);

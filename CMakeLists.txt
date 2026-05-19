@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(simplejs C ASM)
+project(simplejs C)
 
-set(SIMPLEJS_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(SIMPLEJS_SDK_INCLUDE_PATH "${SIMPLEJS_BASE_DIR}/sdk/include")
+set(SIMPLEJS_SDK_INCLUDE_PATH "${CMAKE_CURRENT_LIST_DIR}/sdk/include")
 
-include(${SIMPLEJS_BASE_DIR}/sdk/cmake/default.cmake)
-include(${SIMPLEJS_BASE_DIR}/simplejs.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/sdk/cmake/default.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/simplejs.cmake)

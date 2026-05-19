@@ -19,12 +19,23 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
     switch (variable->type)
     {
     case SIMPLEJS_VARIABLE_TYPE_NUMBER:
+    {
         SIMPLEJS_ASSERT(tempBufferSize > 1);
 
-        snprintf(tempBuffer, tempBufferSize - 1, "%f", simplejs_number_get_float64(&variable->value.number));
+        simplejs_number_t *number = &variable->value.number;
 
-        *out = tempBuffer;
+        if (number->type == SIMPLEJS_NUMBER_TYPE_BOOLEAN)
+        {
+            *out = number->value.boolean ? "true" : "false";
+        }
+        else
+        {
+            snprintf(tempBuffer, tempBufferSize - 1, "%f", simplejs_number_get_float64(&variable->value.number));
+
+            *out = tempBuffer;
+        }
         break;
+    }
 
     case SIMPLEJS_VARIABLE_TYPE_OBJECT:
     {
@@ -49,52 +60,103 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
     }
 }
 
+typedef void (*simplejs_variable_jumptable_f)(simplejs_variable_t *variable);
+
+void simplejs_variable_jumptable_undef(simplejs_variable_t *variable)
+{
+    return;
+}
+
+void simplejs_variable_dereference_object(simplejs_variable_t *variable)
+{
+    SIMPLEJS_ASSERT(variable->value.object != NULL);
+
+    simplejs_object_dereference(variable->value.object);
+}
+
+void simplejs_variable_reference_object(simplejs_variable_t *variable)
+{
+    SIMPLEJS_ASSERT(variable->value.object != NULL);
+
+    simplejs_object_reference(variable->value.object);
+}
+
+void simplejs_variable_lock_gc_object(simplejs_variable_t *variable)
+{
+    SIMPLEJS_ASSERT(variable->value.object != NULL);
+
+    simplejs_object_lock_gc(variable->value.object);
+}
+
+void simplejs_variable_unlock_gc_object(simplejs_variable_t *variable)
+{
+    SIMPLEJS_ASSERT(variable->value.object != NULL);
+
+    simplejs_object_unlock_gc(variable->value.object);
+}
+
 void SIMPLEJS_API simplejs_variable_dereference(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
-        return;
+    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
 
-    SIMPLEJS_ASSERT(variable->value.object != NULL);
+    uintptr_t object_f = (uintptr_t)simplejs_variable_dereference_object;
+    uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
+    simplejs_variable_jumptable_f ptr_f = (void *)((object_f & mask) | (undef_f & ~mask));
 
-    simplejs_object_dereference(variable->value.object);
+    ptr_f(variable);
 }
 
 void SIMPLEJS_API simplejs_variable_reference(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
-        return;
+    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
 
-    SIMPLEJS_ASSERT(variable->value.object != NULL);
+    uintptr_t object_f = (uintptr_t)simplejs_variable_reference_object;
+    uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
+    simplejs_variable_jumptable_f ptr_f = (void *)((object_f & mask) | (undef_f & ~mask));
 
-    simplejs_object_reference(variable->value.object);
+    ptr_f(variable);
 }
 
 void SIMPLEJS_API simplejs_variable_lock_gc(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
-        return;
+    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
 
-    SIMPLEJS_ASSERT(variable->value.object != NULL);
+    uintptr_t object_f = (uintptr_t)simplejs_variable_lock_gc_object;
+    uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
+    simplejs_variable_jumptable_f ptr_f = (void *)((object_f & mask) | (undef_f & ~mask));
 
-    simplejs_object_lock_gc(variable->value.object);
+    ptr_f(variable);
 }
 
-void SIMPLEJS_API simplejs_variable_release_gc(simplejs_variable_t *variable)
+void SIMPLEJS_API simplejs_variable_unlock_gc(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
-        return;
+    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
 
-    SIMPLEJS_ASSERT(variable->value.object != NULL);
+    uintptr_t object_f = (uintptr_t)simplejs_variable_unlock_gc_object;
+    uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
+    simplejs_variable_jumptable_f ptr_f = (void *)((object_f & mask) | (undef_f & ~mask));
 
-    simplejs_object_release_gc(variable->value.object);
+    ptr_f(variable);
+}
+
+void SIMPLEJS_API simplejs_variable_init_undefined(simplejs_variable_t *variable)
+{
+    variable->value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+}
+
+void SIMPLEJS_API simplejs_variable_init_null(simplejs_variable_t *variable)
+{
+    variable->value.number.type = SIMPLEJS_NUMBER_TYPE_NULL;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
 }
 
 void SIMPLEJS_API simplejs_variable_init_number(simplejs_variable_t *variable, simplejs_number_t *number)
@@ -131,5 +193,5 @@ void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, simple
     *variable = *new_variable;
 
     simplejs_variable_reference(variable);
-    simplejs_variable_release_gc(&old_variable);
+    simplejs_variable_unlock_gc(&old_variable);
 }

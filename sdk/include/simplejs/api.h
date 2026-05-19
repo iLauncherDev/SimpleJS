@@ -3,7 +3,7 @@
 #if defined(_WIN32)
 #define SIMPLEJS_DLL_EXPORT __declspec(dllexport)
 #define SIMPLEJS_DLL_IMPORT __declspec(dllimport)
-#define SIMPLEJS_API_CALL __fastcall
+#define SIMPLEJS_API_CALL __cdecl
 #elif defined(__GNUC__) || defined(__clang__)
 #define SIMPLEJS_DLL_EXPORT __attribute__((visibility("default")))
 #define SIMPLEJS_DLL_IMPORT __attribute__((visibility("default")))
@@ -18,6 +18,12 @@
 #define SIMPLEJS_HOOK_API SIMPLEJS_DLL_EXPORT SIMPLEJS_API_CALL
 #else
 #define SIMPLEJS_HOOK_API SIMPLEJS_DLL_IMPORT SIMPLEJS_API_CALL
+#endif
+
+#ifdef SIMPLEJS_PLATFORM
+#define SIMPLEJS_PLATFORM_API SIMPLEJS_DLL_EXPORT SIMPLEJS_API_CALL
+#else
+#define SIMPLEJS_PLATFORM_API SIMPLEJS_DLL_IMPORT SIMPLEJS_API_CALL
 #endif
 
 #ifdef SIMPLEJS_CORE

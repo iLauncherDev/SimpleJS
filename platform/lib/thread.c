@@ -1,6 +1,6 @@
 #include <lib/thread.h>
 
-simplejs_status_t SIMPLEJS_API simplejs_create_thread(simplejs_thread_callback_f callback, void *arg, simplejs_thread_t **out)
+simplejs_status_t SIMPLEJS_PLATFORM_API simplejs_create_thread(simplejs_thread_callback_f callback, void *arg, simplejs_thread_t **out)
 {
     assert(callback != NULL);
 
@@ -35,7 +35,7 @@ result:
     return status;
 }
 
-void SIMPLEJS_API simplejs_destroy_thread(simplejs_thread_t *thread)
+void SIMPLEJS_PLATFORM_API simplejs_destroy_thread(simplejs_thread_t *thread)
 {
     while (true)
     {

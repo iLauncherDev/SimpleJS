@@ -23,14 +23,20 @@ var b = 256;
 var c;
 var result = 2;
 
+var stuckRef = globalThis;
+
 label loop;
 
 var max_iteration = 1000000;
 
 for (var index = 0; index <= max_iteration; index+=max_iteration/100)
 {
-    test_plugin_function(my_function(index));
+    globalThis[index] = my_function(index);
+
+    globalThis["test_plugin_function"](globalThis[index]);
 }
+
+globalThis.something_that.do_not_exists = 0;
 
 //if (result)
 //{

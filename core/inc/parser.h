@@ -24,6 +24,8 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_UNARY_OPERATOR,
     SIMPLEJS_AST_NODE_TYPE_BINARY_OPERATOR,
 
+    SIMPLEJS_AST_NODE_TYPE_COMMA_OPERATOR,
+
     SIMPLEJS_AST_NODE_TYPE_NUMBER,
     SIMPLEJS_AST_NODE_TYPE_STRING,
 
@@ -34,6 +36,7 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE,
 
     SIMPLEJS_AST_NODE_TYPE_ASSIGN,
+    SIMPLEJS_AST_NODE_TYPE_OP_ASSIGN,
 
     SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR,
     SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND,
@@ -69,9 +72,11 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_FUNCTION_CALL,
 
     SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS,
+    SIMPLEJS_AST_NODE_TYPE_EXPRESSION_PROPERTY_ACCESS,
 
     SIMPLEJS_AST_NODE_TYPE_CODEBLOCK,
 
+    SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST,
     SIMPLEJS_AST_NODE_TYPE_VARDECL,
     SIMPLEJS_AST_NODE_TYPE_FUNCDECL,
 
@@ -96,6 +101,7 @@ typedef enum
     SIMPLEJS_PARSER_STATE_FUNCDECL_BLOCK,
     SIMPLEJS_PARSER_STATE_FUNCDECL_END,
 
+    SIMPLEJS_PARSER_STATE_VARDECL_IDLE,
     SIMPLEJS_PARSER_STATE_VARDECL_NAME,
     SIMPLEJS_PARSER_STATE_VARDECL_END,
 
@@ -138,6 +144,12 @@ typedef struct simplejs_ast_node
     simplejs_list_entry_t _stack_list_entry;
     simplejs_list_entry_t _ast_function_list_entry;
 } simplejs_ast_node_t;
+
+typedef struct simplejs_ast_expression_context
+{
+    char **end_operators;
+    int end_operators_size;
+} simplejs_ast_expression_context_t;
 
 typedef struct simplejs_ast_branch_context
 {
@@ -207,5 +219,7 @@ struct simplejs_parser_ctx
 };
 
 const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type);
-simplejs_status_t simplejs_parse_expression(simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, int min_bp);
+simplejs_status_t simplejs_parse_expression(
+    simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, int min_bp,
+    char **end_operators, int end_operators_size);
 void simplejs_free_ast_list(simplejs_ast_node_t *node);

@@ -1,3 +1,3 @@
 #pragma once
-#define SIMPLEJS_CORE
+#define SIMPLEJS_PLATFORM
 #include <simplejs/default.h>

@@ -1,14 +1,17 @@
 #include <default.h>
-#include <mm/gc.h>
-#include <plugin.h>
+#include <simplejs/mm/gc.h>
+#include <simplejs/plugin.h>
 #include <simplejs/lib/thread.h>
 #include <simplejs/lib/shared_lib.h>
 #include <simplejs/lib/sleep.h>
-#include <compiler.h>
-#include <vm.h>
-#include <builtin_object/dynamic_object.h>
+#include <simplejs/compiler.h>
+#include <simplejs/vm.h>
+#include <simplejs/builtin_object/dynamic_object.h>
 
 #include <time.h>
+
+uint32_t minimum_vm_memory_size = 1 * 1024 * 1024;
+uint32_t vm_memory_size = 32 * 1024 * 1024;
 
 char *file_path = NULL;
 char *export_bytecode_path = NULL;
@@ -132,6 +135,20 @@ int processArgs(int argc, char **argv)
 
             export_bytecode_path = argv_window[1];
         }
+        else if (!simplejs_strcasecmp(string, "-vm_memory"))
+        {
+            skips = 2;
+
+            if (remainding_i < skips)
+            {
+                printf("not enough parameters\n");
+                return 1;
+            }
+
+            vm_memory_size = (uint32_t)(strtof(argv_window[1], NULL) * 1024.0f * 1024.0f);
+            if (minimum_vm_memory_size > vm_memory_size)
+                vm_memory_size = minimum_vm_memory_size;
+        }
         else if (!simplejs_strcasecmp(string, "-plugin"))
         {
             skips = 2;
@@ -142,29 +159,55 @@ int processArgs(int argc, char **argv)
                 return 1;
             }
 
-            plugin_entry_t *entry = malloc(sizeof(*entry));
-            if (!entry)
+            char *plugins = argv_window[1];
+            int len = 0;
+            int i = 0;
+
+            while (true)
             {
-                printf("cannot allocate plugin entry\n");
-                return 1;
-            }
+                char current_char = plugins[i];
 
-            memclr(entry, sizeof(*entry));
+                if ((current_char == '\0' || current_char == ',') &&
+                    len > 0)
+                {
+                    char *temp_string = &plugins[i - len];
+                    char temp_string_terminator = temp_string[len];
 
-            entry->name = argv_window[1];
-            simplejs_init_list_entry(&entry->list_entry, entry);
-            simplejs_insert_tail_list(&plugin_list, &entry->list_entry);
+                    temp_string[len] = '\0';
 
-            if (!SIMPLEJS_SUCCESS(simplejs_load_shared_lib(entry->name, &entry->shared_lib)))
-            {
-                printf("cannot load plugin lib\n");
-                return 1;
-            }
+                    plugin_entry_t *entry = malloc(sizeof(*entry));
+                    if (!entry)
+                    {
+                        printf("cannot allocate plugin entry\n");
+                        return 1;
+                    }
 
-            if (!SIMPLEJS_SUCCESS(simplejs_shared_lib_get_proc_address(entry->shared_lib, SIMPLEJS_PLUGIN_ENTRY_NAME, (void **)&entry->plugin_function)))
-            {
-                printf("cannot load plugin function\n");
-                return 1;
+                    memclr(entry, sizeof(*entry));
+
+                    entry->name = temp_string;
+                    simplejs_init_list_entry(&entry->list_entry, entry);
+                    simplejs_insert_tail_list(&plugin_list, &entry->list_entry);
+
+                    if (!SIMPLEJS_SUCCESS(simplejs_load_shared_lib(entry->name, &entry->shared_lib)))
+                    {
+                        printf("cannot load '%s' plugin\n", entry->name);
+                        return 1;
+                    }
+
+                    if (!SIMPLEJS_SUCCESS(simplejs_shared_lib_get_proc_address(entry->shared_lib, SIMPLEJS_PLUGIN_ENTRY_NAME, (void **)&entry->plugin_function)))
+                    {
+                        printf("cannot load '%s' plugin function\n", entry->name);
+                        return 1;
+                    }
+
+                    temp_string[len] = temp_string_terminator;
+                    len = -1;
+                }
+
+                if (current_char == '\0')
+                    break;
+
+                len++, i++;
             }
         }
     }
@@ -178,13 +221,23 @@ volatile bool run_gc_thread = true;
 
 uintptr_t gc_thread_callback(simplejs_thread_t *thread)
 {
+    int tick = 500;
+    int delay = 5000 / tick;
+
+    int current_tick = 0;
+
     while (run_gc_thread)
     {
-        printf("executing GC event!\n");
+        if (current_tick >= delay)
+        {
+            current_tick = 0;
 
-        simplejs_gc_event();
+            printf("executing GC event!\n");
+            simplejs_gc_event();
+        }
 
-        simplejs_sleep(5000);
+        simplejs_sleep(tick);
+        current_tick++;
     }
 
     simplejs_gc_event();
@@ -198,7 +251,8 @@ int main(int argc, char **argv)
     simplejs_token_ctx_t *token_ctx = NULL;
     simplejs_parser_ctx_t *parser_ctx = NULL;
     simplejs_compiler_ctx_t *compiler_ctx = NULL;
-    simplejs_bytecode_vm_t *vm = NULL;
+    simplejs_vm_memory_t *vm_memory = NULL;
+    simplejs_vm_t *vm = NULL;
     simplejs_object_t *global_object = NULL;
     simplejs_utf8_string_t *code = NULL;
     simplejs_thread_t *gc_thread = NULL;
@@ -265,12 +319,17 @@ int main(int argc, char **argv)
         goto result;
     }
 
+    void *executable = NULL;
+    uint32_t executable_size = 0;
+
+    simplejs_compiler_ctx_get_executable(compiler_ctx, &executable, &executable_size);
+
     if (export_bytecode_path)
     {
         FILE *file = fopen(export_bytecode_path, "wb");
 
         fseek(file, 0, SEEK_SET);
-        fwrite(compiler_ctx->executable, compiler_ctx->executable_size, 1, file);
+        fwrite(executable, executable_size, 1, file);
         fclose(file);
     }
 
@@ -280,8 +339,6 @@ int main(int argc, char **argv)
         printf("simplejs_builtin_create_dynamic_object error\n");
         goto result;
     }
-
-    simplejs_object_reference(global_object);
 
     {
         simplejs_list_entry_t *end_plugin = &plugin_list;
@@ -302,6 +359,37 @@ int main(int argc, char **argv)
         }
     }
 
+    status = simplejs_create_vm_memory(vm_memory_size, &vm_memory);
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        printf("simplejs_create_vm_memory error\n");
+        goto result;
+    }
+
+    void *sandbox_executable = simplejs_vm_memory_alloc(vm_memory, executable_size);
+    if (!sandbox_executable)
+    {
+        printf("executable is too big!\n");
+
+        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
+        goto result;
+    }
+    memcpy(sandbox_executable, executable, executable_size);
+
+    simplejs_printf("start bloat memory iteration\n");
+    for (int i = 0; i < 2; i++)
+    {
+        simplejs_printf("bloat memory iteration %d\n", i);
+
+        uintptr_t bloat_mem_size = 16 * 1024 * 1024;
+        void *bloat_mem = simplejs_vm_memory_alloc(vm_memory, bloat_mem_size);
+        SIMPLEJS_ASSERT(bloat_mem != NULL);
+
+        memclr(bloat_mem, bloat_mem_size);
+        simplejs_vm_memory_free(vm_memory, bloat_mem);
+    }
+    simplejs_printf("end bloat memory iteration\n");
+
     status = simplejs_create_vm(&vm);
     if (!SIMPLEJS_SUCCESS(status))
     {
@@ -309,17 +397,7 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    simplejs_variable_t global_variable;
-    global_variable.type = SIMPLEJS_VARIABLE_TYPE_OBJECT;
-    global_variable.value.object = global_object;
-
-    simplejs_variable_assign(&vm->state.global_variable, &global_variable);
-    simplejs_gc_add_object(global_object);
-
-    simplejs_bytecode_header_t *header = (void *)compiler_ctx->executable;
-    uint32_t header_size = ((uint32_t)header->size_low << 0) | ((uint32_t)header->size_high << 8);
-
-    vm->state.instruction_pointer = (uintptr_t)compiler_ctx->executable + header_size;
+    simplejs_vm_set_memory(vm, vm_memory);
 
     printf("vm started!\n");
 
@@ -327,6 +405,24 @@ int main(int argc, char **argv)
     double elapsed_time;
 
     start_time = clock();
+
+    simplejs_variable_t return_variable;
+    simplejs_variable_init_undefined(&return_variable);
+
+    simplejs_variable_t global_variable;
+    simplejs_variable_init_object(&global_variable, global_object);
+
+    simplejs_vm_set_global_variable(vm, &global_variable);
+    simplejs_gc_add_object(global_object);
+
+    simplejs_function_t main_function = {
+        .type = SIMPLEJS_FUNCTION_TYPE_NATIVE,
+        .value = {
+            .instruction_pointer = simplejs_compiler_get_executable_entry_point(sandbox_executable, executable_size),
+        },
+    };
+
+    status = simplejs_vm_call_function(vm, &main_function, &return_variable, NULL, 0, true);
 
     while (SIMPLEJS_SUCCESS(status))
     {
@@ -338,12 +434,14 @@ int main(int argc, char **argv)
 
     printf("vm exited with '%s' on %f seconds\n", simplejs_get_status_string(status), elapsed_time);
 
-result:
-    if (global_object)
-        simplejs_object_dereference(global_object);
+    simplejs_variable_dereference(&return_variable);
 
+result:
     if (vm)
         simplejs_destroy_vm(vm);
+
+    if (vm_memory)
+        simplejs_destroy_vm_memory(vm_memory);
 
     if (compiler_ctx)
         simplejs_free_compiler_ctx(compiler_ctx);
