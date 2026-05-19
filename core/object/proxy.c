@@ -25,6 +25,18 @@ void SIMPLEJS_API simplejs_free_proxy(simplejs_proxy_t *proxy)
     simplejs_hook_mfree(proxy);
 }
 
+void SIMPLEJS_API simplejs_init_proxy_property_query(simplejs_proxy_property_query_t *out)
+{
+    memclr(out, sizeof(*out));
+}
+
+void SIMPLEJS_API simplejs_delete_proxy_property_query(simplejs_proxy_property_query_t *out)
+{
+    simplejs_variable_dereference(&out->property.value);
+
+    simplejs_init_proxy_property_query(out);
+}
+
 #define _simplejs_proxy_set_name_callback(name)                                                                         \
     void SIMPLEJS_API simplejs_proxy_set_##name##_callback(simplejs_proxy_t *proxy, simplejs_proxy_##name##_f callback) \
     {                                                                                                                   \
@@ -37,7 +49,7 @@ _simplejs_proxy_set_name_callback(release);
 
 _simplejs_proxy_set_name_callback(lock_property_list);
 _simplejs_proxy_set_name_callback(unlock_property_list);
-_simplejs_proxy_set_name_callback(get_property_list);
+_simplejs_proxy_set_name_callback(query_property);
 
 _simplejs_proxy_set_name_callback(get_property_value);
 _simplejs_proxy_set_name_callback(set_property_value);
@@ -81,16 +93,16 @@ simplejs_status_t simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, s
     return status;
 }
 
-simplejs_status_t simplejs_proxy_get_property_list(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, simplejs_list_entry_t **property_list)
+simplejs_status_t simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, simplejs_proxy_property_query_t *out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
     SIMPLEJS_ASSERT(pointer != NULL);
 
-    SIMPLEJS_ASSERT(property_list != NULL);
+    SIMPLEJS_ASSERT(out != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_get_property_list, status, pointer, property_list);
+    simplejs_proxy_call_if_exists(proxy->f_query_property, status, pointer, out);
 
     return status;
 }
