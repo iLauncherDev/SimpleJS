@@ -51,6 +51,17 @@ void (*simplejs_bytecode_decode_immX[])(simplejs_bytecode_instruction_t *instruc
     simplejs_bytecode_decode_imm32,
 };
 
+void simplejs_bytecode_get_opcode_size(uint8_t *buffer, uint8_t *instruction_size)
+{
+    uint8_t b1 = *buffer++;
+    uint8_t b2 = *buffer++;
+
+    uint8_t cond = -(b1 >> 7);
+
+    (*instruction_size) =
+        (SIMPLEJS_BYTECODE_EXTENDED_INSTRUCTION_SIZE & cond) | (SIMPLEJS_BYTECODE_BASE_INSTRUCTION_SIZE & ~cond);
+}
+
 void simplejs_bytecode_decode(simplejs_bytecode_instruction_t *instruction, uint8_t *buffer, uint8_t *instruction_size)
 {
     uint8_t b1 = *buffer++;

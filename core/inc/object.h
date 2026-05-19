@@ -21,7 +21,7 @@ struct simplejs_proxy
 
 struct simplejs_object
 {
-    atomic_bool gc_lock;
+    simplejs_spinlock_t gc_lock;
     atomic_int reference_count;
 
     simplejs_raw_object_t *pointer;

@@ -4,18 +4,12 @@ simplejs_gc_t simplejs_gc = {0};
 
 void simplejs_gc_lock_object_list()
 {
-    while (true)
-    {
-        bool expected_value = false;
-
-        if (atomic_compare_exchange_weak_explicit(&simplejs_gc.object_list_lock, &expected_value, true, memory_order_acquire, memory_order_relaxed))
-            break;
-    }
+    simplejs_spinlock_acquire(&simplejs_gc.object_list_lock);
 }
 
 void simplejs_gc_release_object_list()
 {
-    atomic_store_explicit(&simplejs_gc.object_list_lock, false, memory_order_release);
+    simplejs_spinlock_release(&simplejs_gc.object_list_lock);
 }
 
 void SIMPLEJS_API simplejs_gc_event()
@@ -41,6 +35,8 @@ void SIMPLEJS_API simplejs_gc_event()
 
             if (gc_lock)
                 goto skip;
+
+            // simplejs_printf("reference_count = %d\n", reference_count);
 
             if (reference_count < 1)
             {
@@ -82,6 +78,7 @@ simplejs_status_t simplejs_init_gc()
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
+    simplejs_init_spinlock(&simplejs_gc.object_list_lock);
     simplejs_init_list_entry(&simplejs_gc.object_list, &simplejs_gc);
 
 result:

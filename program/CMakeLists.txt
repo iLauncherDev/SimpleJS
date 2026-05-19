@@ -9,8 +9,6 @@ list(APPEND SIMPLEJS_SOURCE
 add_executable(${SIMPLEJS_EXEC_NAME} ${SIMPLEJS_SOURCE})
 
 target_include_directories(${SIMPLEJS_EXEC_NAME} PRIVATE ${SIMPLEJS_INCLUDE_PATH})
-
-target_include_directories(${SIMPLEJS_EXEC_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../core/inc)
 target_include_directories(${SIMPLEJS_EXEC_NAME} PUBLIC ${SIMPLEJS_SDK_INCLUDE_PATH})
 
 target_link_libraries(${SIMPLEJS_EXEC_NAME} simplejs_core simplejs_platform simplejs_hook)

@@ -2,7 +2,7 @@
 
 typedef struct simplejs_dynamic_object_raw
 {
-    atomic_bool property_lock;
+    simplejs_spinlock_t property_lock;
     simplejs_list_entry_t property_list;
     bool read_only;
 } simplejs_dynamic_object_raw_t;
@@ -59,13 +59,7 @@ simplejs_status_t simplejs_dynamic_object_lock_property_list(simplejs_raw_object
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;
 
-    while (true)
-    {
-        bool expected_value = false;
-
-        if (atomic_compare_exchange_weak_explicit(&object->property_lock, &expected_value, true, memory_order_acquire, memory_order_relaxed))
-            break;
-    }
+    simplejs_spinlock_acquire(&object->property_lock);
 
     return status;
 }
@@ -75,7 +69,7 @@ simplejs_status_t simplejs_dynamic_object_unlock_property_list(simplejs_raw_obje
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;
 
-    atomic_store_explicit(&object->property_lock, false, memory_order_release);
+    simplejs_spinlock_release(&object->property_lock);
 
     return status;
 }
@@ -226,6 +220,7 @@ simplejs_status_t SIMPLEJS_API simplejs_builtin_create_dynamic_object(simplejs_o
     }
 
     memclr(dynamic_object, sizeof(*dynamic_object));
+    simplejs_init_spinlock(&dynamic_object->property_lock);
     simplejs_init_list_entry(&dynamic_object->property_list, dynamic_object);
 
     simplejs_object_t *object = NULL;
