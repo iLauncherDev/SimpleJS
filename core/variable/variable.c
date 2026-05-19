@@ -28,7 +28,7 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
     case SIMPLEJS_VARIABLE_TYPE_OBJECT:
     {
-        char *object_type = "Object";
+        char *object_type = "[Object]";
         simplejs_object_get_string(variable->value.object, &object_type);
 
         *out = object_type;
@@ -36,7 +36,7 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
     }
 
     case SIMPLEJS_VARIABLE_TYPE_FUNCTION:
-        *out = "Function";
+        *out = "[Function]";
         break;
 
     case SIMPLEJS_VARIABLE_TYPE_FAST_STRING:
