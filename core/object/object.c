@@ -82,11 +82,11 @@ simplejs_status_t SIMPLEJS_API simplejs_object_unlock_property_list(simplejs_obj
     return simplejs_proxy_unlock_property_list(object->proxy, object->pointer);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_get_property_list(simplejs_object_t *object, simplejs_list_entry_t **property_list)
+simplejs_status_t SIMPLEJS_API simplejs_object_query_property(simplejs_object_t *object, simplejs_proxy_property_query_t *out)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_get_property_list(object->proxy, object->pointer, property_list);
+    return simplejs_proxy_query_property(object->proxy, object->pointer, out);
 }
 
 simplejs_status_t SIMPLEJS_API simplejs_object_get_property_value(simplejs_object_t *object, simplejs_variable_t *property, simplejs_variable_t *out)
