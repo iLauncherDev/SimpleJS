@@ -184,11 +184,8 @@ simplejs_status_t simplejs_bytecode_opcode_save_ctx(simplejs_bytecode_vm_t *vm, 
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_struct(vm, context), result, status);
 
-    for (size_t i = 0; i < 16; i++)
+    for (size_t i = SIMPLEJS_BYTECODE_VARIABLE_FUNC_RETURN + 1; i < 16; i++)
     {
-        if (i == SIMPLEJS_BYTECODE_VARIABLE_FUNC_RETURN)
-            continue;
-
         simplejs_variable_assign(&context->variables[i], &vm->state.variables[i]);
     }
 
@@ -214,18 +211,13 @@ simplejs_status_t simplejs_bytecode_opcode_restore_ctx(simplejs_bytecode_vm_t *v
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_struct(vm, context), result, status);
 
-    for (size_t i = 0; i < 16; i++)
+    simplejs_variable_t undef_variable;
+    undef_variable.type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+    undef_variable.value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
+
+    for (size_t i = SIMPLEJS_BYTECODE_VARIABLE_FUNC_RETURN + 1; i < 16; i++)
     {
-        simplejs_variable_t undef_variable;
-        undef_variable.type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
-        undef_variable.value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
-
-        if (i == SIMPLEJS_BYTECODE_VARIABLE_FUNC_RETURN)
-            goto skip_ctx_var;
-
         simplejs_variable_assign(&vm->state.variables[i], &context->variables[i]);
-
-    skip_ctx_var:
         simplejs_variable_assign(&context->variables[i], &undef_variable);
     }
 
