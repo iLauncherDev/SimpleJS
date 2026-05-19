@@ -1,10 +1,13 @@
 #pragma once
-#include "api.h"
-
+#include "../api.h"
+#include "../type.h"
+  
 typedef enum simplejs_status
 {
     SIMPLEJS_STATUS_SUCCESS = 0,
+    SIMPLEJS_STATUS_UNSUCCESSFUL, 
     SIMPLEJS_STATUS_STACK_OUT_OF_BOUNDS,
+    SIMPLEJS_STATUS_MEMORY_OUT_OF_BOUNDS,
     SIMPLEJS_STATUS_PROGRAM_EXITED,
     SIMPLEJS_STATUS_PROGRAM_CRASHED,
     SIMPLEJS_STATUS_NOT_IMPLEMENTED,
@@ -20,5 +23,3 @@ typedef enum simplejs_status
 #define SIMPLEJS_REQUIRE_SUCCESS(var, label, status) SIMPLEJS_REQUIRE(SIMPLEJS_SUCCESS((status) = (var)), label)
 
 const pchar SIMPLEJS_API simplejs_get_status_string(simplejs_status_t status);
-
-#include "default.h"

@@ -4,7 +4,7 @@
 
 typedef struct simplejs_gc
 {
-    atomic_bool object_list_lock;
+    simplejs_spinlock_t object_list_lock;
     simplejs_list_entry_t object_list;
 } simplejs_gc_t;
 

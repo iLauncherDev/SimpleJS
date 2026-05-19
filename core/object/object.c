@@ -18,6 +18,7 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *poin
     ret->pointer = pointer;
     ret->proxy = proxy;
 
+    simplejs_init_spinlock(&ret->gc_lock);
     simplejs_init_list_entry(&ret->gc_list_entry, ret);
 
     *out = ret;
@@ -26,24 +27,23 @@ result:
     return status;
 }
 
+void SIMPLEJS_API simplejs_free_object(simplejs_object_t *object)
+{
+    simplejs_hook_mfree(object);
+}
+
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    while (true)
-    {
-        bool expected_value = false;
-
-        if (atomic_compare_exchange_weak_explicit(&object->gc_lock, &expected_value, true, memory_order_acquire, memory_order_relaxed))
-            break;
-    }
+    simplejs_spinlock_acquire(&object->gc_lock);
 }
 
-void SIMPLEJS_API simplejs_object_release_gc(simplejs_object_t *object)
+void SIMPLEJS_API simplejs_object_unlock_gc(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    atomic_store_explicit(&object->gc_lock, false, memory_order_release);
+    simplejs_spinlock_release(&object->gc_lock);
 }
 
 void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object)

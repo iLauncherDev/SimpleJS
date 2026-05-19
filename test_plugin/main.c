@@ -1,6 +1,6 @@
 #include <default.h>
 
-simplejs_status_t test_plugin_function(struct simplejs_function_header *function_header, struct simplejs_variable *out)
+simplejs_status_t test_plugin_function(simplejs_function_header_t *function_header)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 

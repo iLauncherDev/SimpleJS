@@ -40,7 +40,9 @@ list(APPEND SIMPLEJS_SOURCE
 
     ${SIMPLEJS_PATH}/variable/variable.c
 
+    ${SIMPLEJS_PATH}/bytecode/vm-memory.c
     ${SIMPLEJS_PATH}/bytecode/vm.c
+    ${SIMPLEJS_PATH}/bytecode/reverse-vm.c
     ${SIMPLEJS_PATH}/bytecode/compiler.c
     ${SIMPLEJS_PATH}/bytecode/bytecode.c
 
@@ -58,4 +60,4 @@ set_target_properties(${SIMPLEJS_LIB_NAME} PROPERTIES
 
 target_include_directories(${SIMPLEJS_LIB_NAME} PRIVATE ${SIMPLEJS_INCLUDE_PATH})
 target_include_directories(${SIMPLEJS_LIB_NAME} PUBLIC ${SIMPLEJS_SDK_INCLUDE_PATH})
-target_link_libraries(${SIMPLEJS_LIB_NAME} PRIVATE simplejs_hook)
+target_link_libraries(${SIMPLEJS_LIB_NAME} PRIVATE simplejs_hook simplejs_platform)

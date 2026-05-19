@@ -6,6 +6,8 @@ typedef enum
     SIMPLEJS_NUMBER_TYPE_UNDEFINED,
     SIMPLEJS_NUMBER_TYPE_NULL,
 
+    SIMPLEJS_NUMBER_TYPE_BOOLEAN,
+
     SIMPLEJS_NUMBER_TYPE_IPTR,
     SIMPLEJS_NUMBER_TYPE_I32,
     SIMPLEJS_NUMBER_TYPE_I64,
@@ -35,6 +37,8 @@ typedef struct simplejs_number
     union
     {
         uint64_t generic;
+
+        bool boolean;
 
         intptr_t iptr;
         int32_t i32;
