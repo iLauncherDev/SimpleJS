@@ -1,6 +1,7 @@
 #pragma once
 #include "bytecode.h"
 #include "parser.h"
+#include <simplejs/compiler.h>
 
 typedef enum simplejs_compiler_instruction_type
 {
@@ -24,18 +25,6 @@ typedef struct simplejs_compiler_instruction
     simplejs_list_entry_t list_entry;
 } simplejs_compiler_instruction_t;
 
-typedef struct simplejs_compiler_ctx
-{
-    simplejs_parser_ctx_t *parser_ctx;
-
-    uint32_t data_offset;
-    uint32_t instruction_list_count;
-    simplejs_list_entry_t instruction_list;
-
-    uint8_t *executable;
-    uint32_t executable_size;
-} simplejs_compiler_ctx_t;
-
 typedef struct simplejs_compiler_ast_info
 {
     uintptr_t return_label_id;
@@ -45,9 +34,21 @@ typedef struct simplejs_compiler_ast_info
 
 typedef struct simplejs_compiler_reg_info
 {
-    bool is_sub_op;
-    bool is_write;
-    uint8_t reg_a, reg_b;
+    bool is_sub_op, is_sub_assign, block_refetch;
+    bool is_write, have_parent;
+    uint8_t reg_a, reg_b, reg_parent;
 } simplejs_compiler_reg_info_t;
 
-#include <simplejs/compiler.h>
+struct simplejs_compiler_ctx
+{
+    simplejs_parser_ctx_t *parser_ctx;
+
+    uint32_t data_offset;
+    uint32_t instruction_list_count;
+    simplejs_list_entry_t instruction_list;
+
+    uint8_t *executable;
+    uint32_t executable_size;
+};
+
+void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintptr_t instruction_pointer);
