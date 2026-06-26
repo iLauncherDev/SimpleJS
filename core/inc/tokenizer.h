@@ -1,6 +1,7 @@
 #pragma once
 #include "default.h"
 #include "number.h"
+#include "diagnostic.h"
 #include "lib/utf8.h"
 #include <simplejs/tokenizer.h>
 
@@ -62,6 +63,7 @@ typedef struct simplejs_token
 
 struct simplejs_token_ctx
 {
+    char *file_path;
     simplejs_utf8_string_t *code;
     simplejs_token_state_t state;
     struct

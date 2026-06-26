@@ -132,6 +132,8 @@ typedef struct simplejs_ast_node
 
     simplejs_ast_node_type_t type;
 
+    simplejs_token_t *diagnostic_token;
+
     void *parent_node;
     void *context;
     uintptr_t flags;
@@ -206,6 +208,8 @@ typedef struct simplejs_ast_label_context
 
 struct simplejs_parser_ctx
 {
+    simplejs_token_ctx_t *token_ctx;
+
     simplejs_parser_state_t state;
 
     simplejs_ast_node_t *root_ast;
@@ -216,6 +220,8 @@ struct simplejs_parser_ctx
 
     simplejs_list_entry_t function_context_stack;
     simplejs_ast_function_context_t *current_function_context_stack;
+
+    simplejs_token_t *current_token;
 };
 
 const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type);

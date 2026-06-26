@@ -1,5 +1,12 @@
 #include <lib/thread.h>
 
+pvoid SIMPLEJS_PLATFORM_API simplejs_get_thread_arg(simplejs_thread_t *thread)
+{
+    SIMPLEJS_ASSERT(thread != NULL);
+
+    return thread->arg;
+}
+
 simplejs_status_t SIMPLEJS_PLATFORM_API simplejs_create_thread(simplejs_thread_callback_f callback, void *arg, simplejs_thread_t **out)
 {
     assert(callback != NULL);
