@@ -1,6 +1,7 @@
 #include <default.h>
 #include <simplejs/mm/gc.h>
 #include <simplejs/plugin.h>
+#include <simplejs/lib/realpath.h>
 #include <simplejs/lib/thread.h>
 #include <simplejs/lib/shared_lib.h>
 #include <simplejs/lib/sleep.h>
@@ -248,6 +249,7 @@ uintptr_t gc_thread_callback(simplejs_thread_t *thread)
 
 int main(int argc, char **argv)
 {
+    char *abs_file_path = NULL;
     simplejs_token_ctx_t *token_ctx = NULL;
     simplejs_parser_ctx_t *parser_ctx = NULL;
     simplejs_compiler_ctx_t *compiler_ctx = NULL;
@@ -278,7 +280,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    code = readFile(file_path);
+    abs_file_path = simplejs_realpath(file_path);
+    if (!abs_file_path)
+    {
+        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
+        goto result;
+    }
+
+    code = readFile(abs_file_path);
     if (!code)
     {
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
@@ -292,7 +301,7 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    status = simplejs_tokenize(code, &token_ctx);
+    status = simplejs_tokenize(abs_file_path, code, &token_ctx);
     if (!SIMPLEJS_SUCCESS(status))
     {
         printf("simplejs_tokenize error\n");
@@ -460,6 +469,9 @@ result:
 
     if (code)
         free(code);
+
+    if (abs_file_path)
+        free(abs_file_path);
 
     free_plugin_list();
 
