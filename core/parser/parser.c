@@ -517,6 +517,8 @@ static simplejs_status_t simplejs_add_function_ast(simplejs_parser_ctx_t *parser
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_full_function_context(&function_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_FUNCDECL, &function_ast), result, status);
 
+    function_ast->diagnostic_token = parser_ctx->current_token;
+
     simplejs_insert_tail_list(&current_scope_context->function_list_entry, &function_context->_scope_list_entry);
 
     parser_ctx->current_function_context_stack = function_context;
@@ -554,6 +556,8 @@ static simplejs_status_t simplejs_add_branch_ast_ex(simplejs_parser_ctx_t *parse
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_branch_context(&branch_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(type, &branch_ast), result, status);
+
+    branch_ast->diagnostic_token = parser_ctx->current_token;
 
     branch_ast->context = branch_context;
 
@@ -644,6 +648,8 @@ static simplejs_status_t simplejs_add_codeblock_ast(simplejs_parser_ctx_t *parse
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_scope_context(&scope_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_CODEBLOCK, &scope_ast), result, status);
 
+    scope_ast->diagnostic_token = parser_ctx->current_token;
+
     scope_ast->context = scope_context;
 
     current_function_context->current_scope_stack = scope_context;
@@ -676,6 +682,8 @@ static simplejs_status_t simplejs_add_while_loop_ast(simplejs_parser_ctx_t *pars
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_WHILE_LOOP, &while_loop_ast), result, status);
 
+    while_loop_ast->diagnostic_token = parser_ctx->current_token;
+
     simplejs_add_children_ast(parser_ctx, while_loop_ast);
     simplejs_push_ast_to_stack(parser_ctx, while_loop_ast);
 
@@ -699,6 +707,8 @@ static simplejs_status_t simplejs_add_for_loop_ast(simplejs_parser_ctx_t *parser
     simplejs_ast_node_t *for_loop_ast = NULL;
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_FOR_LOOP, &for_loop_ast), result, status);
+
+    for_loop_ast->diagnostic_token = parser_ctx->current_token;
 
     simplejs_add_children_ast(parser_ctx, for_loop_ast);
     simplejs_push_ast_to_stack(parser_ctx, for_loop_ast);
@@ -725,6 +735,8 @@ static simplejs_status_t simplejs_add_label_ast(simplejs_parser_ctx_t *parser_ct
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_label_context(&label_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_LABEL, &label_ast), result, status);
+
+    label_ast->diagnostic_token = parser_ctx->current_token;
 
     label_ast->context = label_context;
 
@@ -755,6 +767,8 @@ static simplejs_status_t simplejs_add_goto_ast(simplejs_parser_ctx_t *parser_ctx
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_GOTO, &goto_ast), result, status);
 
+    goto_ast->diagnostic_token = parser_ctx->current_token;
+
     simplejs_add_children_ast(parser_ctx, goto_ast);
     simplejs_push_ast_to_stack(parser_ctx, goto_ast);
 
@@ -780,6 +794,8 @@ static simplejs_status_t simplejs_add_var_ast(simplejs_parser_ctx_t *parser_ctx)
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_var_context(&var_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_VARDECL, &var_ast), result, status);
+
+    var_ast->diagnostic_token = parser_ctx->current_token;
 
     var_ast->context = var_context;
 
@@ -813,6 +829,8 @@ static simplejs_status_t simplejs_add_var_idle_ast(simplejs_parser_ctx_t *parser
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST, &var_ast), result, status);
 
+    var_ast->diagnostic_token = parser_ctx->current_token;
+
     simplejs_add_children_ast(parser_ctx, var_ast);
     simplejs_push_ast_to_stack(parser_ctx, var_ast);
 
@@ -836,6 +854,8 @@ static simplejs_status_t simplejs_add_expression_ast(simplejs_parser_ctx_t *pars
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_EXPRESSION, &expression_ast), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_expression_context(&expression_ctx), result, status);
+
+    expression_ast->diagnostic_token = parser_ctx->current_token;
 
     expression_ctx->end_operators = end_operators;
     expression_ctx->end_operators_size = end_operators_size;
@@ -866,6 +886,8 @@ static simplejs_status_t simplejs_add_return_ast(simplejs_parser_ctx_t *parser_c
     simplejs_ast_node_t *return_ast = NULL;
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_RETURN, &return_ast), result, status);
+
+    return_ast->diagnostic_token = parser_ctx->current_token;
 
     simplejs_add_children_ast(parser_ctx, return_ast);
     simplejs_push_ast_to_stack(parser_ctx, return_ast);
@@ -1164,8 +1186,35 @@ result:
     return status;
 }
 
+void simplejs_present_parser_diagnostic(
+    simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t *ast_node, simplejs_token_t *target_token,
+    char *type, char *message)
+{
+    simplejs_token_t *ast_token = ast_node ? ast_node->diagnostic_token : NULL;
+    if (!ast_token)
+        ast_token = target_token;
+
+    simplejs_diagnostic_message_t diagnostic_message;
+    simplejs_init_diagnostic_message(&diagnostic_message);
+
+    diagnostic_message.file_path = parser_ctx->token_ctx->file_path;
+    diagnostic_message.code = parser_ctx->token_ctx->code;
+
+    diagnostic_message.token_offset.start = target_token->offset.start;
+    diagnostic_message.token_offset.end = target_token->offset.end;
+
+    diagnostic_message.line_offset.start = ast_token->offset.start;
+    diagnostic_message.line_offset.end = diagnostic_message.token_offset.end;
+
+    diagnostic_message.type = type;
+    diagnostic_message.message = message;
+
+    simplejs_present_diagnostic_message(&diagnostic_message);
+}
+
 simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *token_ctx, simplejs_parser_ctx_t **out)
 {
+    simplejs_diagnostic_message_t diagnostic_message;
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_parser_ctx_t *parser_ctx = simplejs_hook_malloc(sizeof(*parser_ctx));
     if (!parser_ctx)
@@ -1178,6 +1227,8 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
 
     SIMPLEJS_ASSERT(token_ctx != NULL);
     SIMPLEJS_ASSERT(out != NULL);
+
+    parser_ctx->token_ctx = token_ctx;
 
     parser_ctx->state = SIMPLEJS_PARSER_STATE_IDLE;
 
@@ -1200,6 +1251,8 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
     while (current_token != end_token)
     {
         simplejs_token_t *token = simplejs_get_list_entry_structure(current_token);
+        parser_ctx->current_token = token;
+
         simplejs_token_t *next_token = simplejs_get_list_entry_structure(current_token->next);
         if (&next_token->list_entry == end_token)
             next_token = NULL;
@@ -1297,9 +1350,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1313,9 +1364,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1386,9 +1435,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1424,9 +1471,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1441,9 +1486,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1474,9 +1517,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1512,9 +1553,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1531,9 +1570,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             }
             else if (!simplejs_check_token_operator(token, ","))
             {
-                simplejs_printf("invalid token!\n");
-                simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-                simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+                simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
                 status = SIMPLEJS_STATUS_INVALID_TOKEN;
                 goto result;
@@ -1552,7 +1589,10 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             if (!label_context->name &&
                 token->type != SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
             {
-                simplejs_printf("its expected to have label name!\n");
+                simplejs_present_parser_diagnostic(
+                    parser_ctx, parser_ctx->current_ast_stack, token,
+                    SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "expected a valid label name");
+
                 status = SIMPLEJS_STATUS_INVALID_TOKEN;
                 goto result;
             }
@@ -1571,9 +1611,9 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(
+                parser_ctx, parser_ctx->current_ast_stack, token,
+                SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1603,9 +1643,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1620,9 +1658,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1636,9 +1672,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1671,9 +1705,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1688,9 +1720,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1705,9 +1735,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
@@ -1721,9 +1749,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
-            simplejs_printf("invalid token!\n");
-            simplejs_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
 
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;

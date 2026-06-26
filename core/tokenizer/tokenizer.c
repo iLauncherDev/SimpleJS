@@ -910,13 +910,19 @@ void SIMPLEJS_API simplejs_free_token_ctx(simplejs_token_ctx_t *ctx)
         current = next;
     }
 
+    if (ctx->file_path)
+        simplejs_hook_mfree(ctx->file_path);
+
     simplejs_hook_mfree(ctx);
 }
 
 #define simplejs_tokenize_flush_identifier(label, status) SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_token(ctx, SIMPLEJS_TOKEN_TYPE_IDENTIFIER, NULL), label, status)
 
-simplejs_status_t SIMPLEJS_API simplejs_tokenize(simplejs_utf8_string_t *code, simplejs_token_ctx_t **out)
+simplejs_status_t SIMPLEJS_API simplejs_tokenize(char *file_path, simplejs_utf8_string_t *code, simplejs_token_ctx_t **out)
 {
+    SIMPLEJS_ASSERT(code != NULL);
+    SIMPLEJS_ASSERT(out != NULL);
+
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_token_ctx_t *ctx = simplejs_alloc_token_ctx();
     if (!ctx)
@@ -925,11 +931,15 @@ simplejs_status_t SIMPLEJS_API simplejs_tokenize(simplejs_utf8_string_t *code, s
         goto result;
     }
 
+    ctx->file_path = strdup(file_path);
+    if (!ctx->file_path)
+    {
+        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
+        goto result;
+    }
+
     ctx->code = code;
     ctx->state = SIMPLEJS_TOKEN_STATE_IDLE;
-
-    SIMPLEJS_ASSERT(code != NULL);
-    SIMPLEJS_ASSERT(out != NULL);
 
     for (ctx->index = 0; ctx->index < code->valid_size; ctx->index++)
     {

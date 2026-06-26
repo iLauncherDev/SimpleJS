@@ -9,6 +9,9 @@ else()
 endif()
 
 list(APPEND SIMPLEJS_SOURCE
+    ${SIMPLEJS_PATH}/lib/platform/realpath-${SIMPLEJS_PLATFORM}.c
+    ${SIMPLEJS_PATH}/lib/realpath.c
+
     ${SIMPLEJS_PATH}/lib/platform/page-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/page.c
 

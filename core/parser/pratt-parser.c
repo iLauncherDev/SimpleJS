@@ -13,6 +13,10 @@ bool simplejs_get_scoped_output(
     simplejs_parser_ctx_t *parser_ctx, void *context, void *out,
     bool (*callback)(simplejs_ast_scope_context_t *scope_context, void *context, void *out));
 
+void simplejs_present_parser_diagnostic(
+    simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t *ast_node, simplejs_token_t *target_token,
+    char *type, char *message);
+
 int simplejs_parse_expression_level = 0;
 
 typedef struct local_scoped
@@ -698,7 +702,9 @@ static simplejs_status_t simplejs_nud(
     simplejs_parser_printf("token->type = %s\n", simplejs_get_token_type_string(token->type));
     simplejs_parser_printf("token->string = \"%s\"\n", token->string->buffer);
 
-    simplejs_parser_printf("unexpected token in expression\n");
+    simplejs_present_parser_diagnostic(
+        parser_ctx, parser_ctx->current_ast_stack, token,
+        SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "unexpected token in expression");
 
 result:
     return status;
@@ -809,7 +815,11 @@ simplejs_status_t simplejs_process_operator(
 
             if (prop->type != SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
             {
-                simplejs_parser_printf("invalid format\n");
+                simplejs_present_parser_diagnostic(
+                    parser_ctx, parser_ctx->current_ast_stack, prop,
+                    SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid format");
+
+                status = SIMPLEJS_STATUS_INVALID_TOKEN;
                 goto result;
             }
 
@@ -874,7 +884,13 @@ simplejs_status_t simplejs_process_operator(
 
                 if (!simplejs_check_token_operator(operator, ","))
                 {
-                    simplejs_parser_printf("invalid call argument separator! ('%s')\n", operator->string->buffer);
+                    char message[256] = {0};
+                    snprintf(message, sizeof(message) - 1, "invalid call argument separator! ('%s')", operator->string->buffer);
+
+                    simplejs_present_parser_diagnostic(
+                        parser_ctx, parser_ctx->current_ast_stack, operator,
+                        SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, message);
+
                     status = SIMPLEJS_STATUS_INVALID_TOKEN;
                     goto result;
                 }
@@ -995,9 +1011,11 @@ simplejs_status_t simplejs_parse_expression(
 
         if (!is_operator(parser_ctx, operator))
         {
-            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            simplejs_present_parser_diagnostic(
+                parser_ctx, parser_ctx->current_ast_stack, operator,
+                SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "expected a valid operator");
 
-            simplejs_parser_printf("not valid operator\n");
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
         }
 

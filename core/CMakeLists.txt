@@ -3,6 +3,9 @@ set(SIMPLEJS_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 set(SIMPLEJS_INCLUDE_PATH "${SIMPLEJS_PATH}/inc")
 
 list(APPEND SIMPLEJS_SOURCE
+    ${SIMPLEJS_PATH}/diagnostic/cursor.c
+    ${SIMPLEJS_PATH}/diagnostic/message.c
+
     ${SIMPLEJS_PATH}/lib/bitmap.c
 
     ${SIMPLEJS_PATH}/lib/list.c
