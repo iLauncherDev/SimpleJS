@@ -155,6 +155,8 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_raw_object
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
 
+    // printf("simplejs_dynamic_object_get_property_value: %s\n", name);
+
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;
 
@@ -178,6 +180,8 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_raw_object
     char *name;
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
+
+    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;

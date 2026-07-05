@@ -1030,7 +1030,7 @@ simplejs_status_t SIMPLEJS_API simplejs_execute_vm(simplejs_vm_t *vm)
     simplejs_bytecode_decode(&instruction, (uint8_t *)vm->state.instruction_pointer, &instruction_size);
 
     // simplejs_printf("/* ip: %p */ ", (void *)vm->state.instruction_pointer);
-    // simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer);
+    // simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer + instruction_size);
 
     vm->state.instruction_pointer += instruction_size;
 

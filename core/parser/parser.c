@@ -1837,7 +1837,7 @@ result:
     }
     else
     {
-        simplejs_dump_ast_tree(parser_ctx);
+        //simplejs_dump_ast_tree(parser_ctx);
     }
 
     return status;
