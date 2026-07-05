@@ -1,5 +1,6 @@
 #include <variable.h>
 #include <object.h>
+#include <lib/float_utils.h>
 
 uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable)
 {
@@ -30,7 +31,9 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
         }
         else
         {
-            snprintf(tempBuffer, tempBufferSize - 1, "%f", simplejs_number_get_float64(&variable->value.number));
+            char tempString[512] = {0};
+
+            simplejs_convert_double_to_string(tempBuffer, tempBufferSize - 1, simplejs_number_get_float64(&variable->value.number));
 
             *out = tempBuffer;
         }
@@ -39,7 +42,7 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
     case SIMPLEJS_VARIABLE_TYPE_OBJECT:
     {
-        char *object_type = "[Object]";
+        char *object_type = "[Unknown Object]";
         simplejs_object_get_string(variable->value.object, &object_type);
 
         *out = object_type;

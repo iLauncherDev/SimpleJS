@@ -36,6 +36,14 @@ for (var index = 0; index <= max_iteration; index+=max_iteration/100)
     globalThis["test_plugin_function"](globalThis[index]);
 }
 
+globalThis[0.123456789123456789] = 0;
+globalThis[0.123456789] = 0;
+globalThis[0.5555] = 0;
+globalThis[0.5] = 0;
+globalThis[0.25] = 0;
+globalThis[0.125] = 0;
+globalThis[0] = 0;
+
 globalThis.something_that.do_not_exists = 0;
 
 //if (result)
