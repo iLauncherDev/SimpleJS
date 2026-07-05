@@ -14,6 +14,8 @@ list(APPEND SIMPLEJS_SOURCE
 
     ${SIMPLEJS_PATH}/lib/status.c
 
+    ${SIMPLEJS_PATH}/lib/float_utils.c
+
     ${SIMPLEJS_PATH}/lib/s_string.c
 
     ${SIMPLEJS_PATH}/number/alu-iptr.c
