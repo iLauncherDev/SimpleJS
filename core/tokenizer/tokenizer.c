@@ -458,6 +458,10 @@ static int simplejs_get_number_base_by_string(char *string, int *reserve_chars)
 
         switch (chr2)
         {
+        case '.':
+            *reserve_chars = 1;
+            return 10;
+
         case 'x':
             return 16;
 
@@ -558,8 +562,9 @@ result:
 static simplejs_status_t simplejs_process_float_number(char *string, double *output)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-    double ret = 0.0;
-    double pow = 1.0;
+
+    double ret = 0;
+    double pow = 1;
     int dots = 0;
 
     int reserve_chars = 0;
@@ -590,6 +595,9 @@ static simplejs_status_t simplejs_process_float_number(char *string, double *out
 
         if (character == '.')
         {
+            ret /= pow;
+            pow = 1;
+
             is_processing_decimal = false;
             continue;
         }
@@ -604,16 +612,8 @@ static simplejs_status_t simplejs_process_float_number(char *string, double *out
             goto result;
         }
 
-        if (is_processing_decimal)
-        {
-            ret += (double)number;
-            ret /= (double)base;
-        }
-        else
-        {
-            ret += (double)number * pow;
-            pow *= (double)base;
-        }
+        ret += (double)number * pow;
+        pow *= base;
     }
 
     *output = ret;
@@ -887,8 +887,7 @@ void SIMPLEJS_API simplejs_tokenize_dump_tokens(simplejs_token_ctx_t *ctx)
 
             simplejs_printf("\n");
         }
-        else
-            simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
+        simplejs_printf("token->string = \"%s\"\n", token->string->buffer);
 
         current = next;
     }
