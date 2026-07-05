@@ -269,7 +269,7 @@ simplejs_status_t simplejs_execute_reverse_vm(simplejs_vm_t *vm)
     simplejs_bytecode_decode(&instruction, (uint8_t *)vm->state.instruction_pointer, &instruction_size);
 
     simplejs_printf("/* reverse ip: %p */ ", (void *)vm->state.instruction_pointer);
-    simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer);
+    simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer + instruction_size);
 
     vm->state.instruction_pointer += instruction_size;
 
