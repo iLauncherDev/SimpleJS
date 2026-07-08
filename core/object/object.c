@@ -36,7 +36,7 @@ void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    simplejs_spinlock_acquire(&object->gc_lock);
+    simplejs_spinlock_acquire(&object->gc_lock, true);
 }
 
 void SIMPLEJS_API simplejs_object_unlock_gc(simplejs_object_t *object)
