@@ -4,7 +4,7 @@ simplejs_gc_t simplejs_gc = {0};
 
 void simplejs_gc_lock_object_list()
 {
-    simplejs_spinlock_acquire(&simplejs_gc.object_list_lock);
+    simplejs_spinlock_acquire(&simplejs_gc.object_list_lock, true);
 }
 
 void simplejs_gc_release_object_list()
