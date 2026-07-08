@@ -59,7 +59,7 @@ simplejs_status_t simplejs_dynamic_object_lock_property_list(simplejs_raw_object
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = pointer;
 
-    simplejs_spinlock_acquire(&object->property_lock);
+    simplejs_spinlock_acquire(&object->property_lock, true);
 
     return status;
 }

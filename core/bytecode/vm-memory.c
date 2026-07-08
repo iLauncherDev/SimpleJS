@@ -88,7 +88,7 @@ pvoid SIMPLEJS_API simplejs_vm_memory_alloc(simplejs_vm_memory_t *vm_memory, siz
     size_t start_page = 0;
     size_t current_free_pages = 0;
 
-    simplejs_spinlock_acquire(&vm_memory->memory_pages_lock);
+    simplejs_spinlock_acquire(&vm_memory->memory_pages_lock, true);
 
     for (size_t i = 0; i < vm_memory->memory_size_in_pages; i++)
     {
@@ -145,7 +145,7 @@ void SIMPLEJS_API simplejs_vm_memory_free(simplejs_vm_memory_t *vm_memory, void 
     simplejs_vm_memory_page_t *alloc_page = &vm_memory->memory_pages[start_page];
     size_t allocated_pages = alloc_page->allocated_pages;
 
-    simplejs_spinlock_acquire(&vm_memory->memory_pages_lock);
+    simplejs_spinlock_acquire(&vm_memory->memory_pages_lock, true);
 
     SIMPLEJS_ASSERT(alloc_page->allocated_pages != 0);
     SIMPLEJS_ASSERT(alloc_page->flags & SIMPLEJS_VM_MEMORY_PAGE_ALLOCATED_FLAG);
