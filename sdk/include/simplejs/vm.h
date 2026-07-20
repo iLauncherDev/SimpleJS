@@ -6,6 +6,7 @@ typedef struct simplejs_vm simplejs_vm_t;
 
 simplejs_status_t SIMPLEJS_API simplejs_create_vm_memory(size_t size, simplejs_vm_memory_t **out);
 void SIMPLEJS_API simplejs_destroy_vm_memory(simplejs_vm_memory_t *vm_memory);
+bool SIMPLEJS_API simplejs_vm_memory_find_alloc_start(simplejs_vm_memory_t *vm_memory, pvoid address, void **out, size_t *out_size);
 pvoid SIMPLEJS_API simplejs_vm_memory_alloc(simplejs_vm_memory_t *vm_memory, size_t size_in_bytes);
 void SIMPLEJS_API simplejs_vm_memory_free(simplejs_vm_memory_t *vm_memory, void *ptr);
 

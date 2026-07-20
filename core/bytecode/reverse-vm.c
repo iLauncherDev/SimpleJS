@@ -147,11 +147,7 @@ simplejs_status_t simplejs_reverse_bytecode_opcode_return(simplejs_vm_t *vm, sim
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
-    simplejs_vm_return_t *vm_return = NULL;
-
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_bytecode_opcode_return(vm, instruction), result, status);
-
-    vm->state.instruction_pointer = vm_return->instruction_pointer;
 
 result:
     return status;
@@ -266,7 +262,7 @@ simplejs_status_t simplejs_execute_reverse_vm(simplejs_vm_t *vm)
                                  instruction_size),
                              result, status);
 
-    simplejs_bytecode_decode(&instruction, (uint8_t *)vm->state.instruction_pointer, &instruction_size);
+    simplejs_bytecode_decode((uint8_t *)vm->state.instruction_pointer, &instruction, &instruction_size);
 
     simplejs_printf("/* reverse ip: %p */ ", (void *)vm->state.instruction_pointer);
     simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer + instruction_size);
