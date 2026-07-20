@@ -2,7 +2,7 @@
 
 static char *useless_chars = "\r";
 static char *separators_chars = " \n";
-static char *valid_operators = ";:,.${}()[]<>+-*/%|&!=";
+static char *valid_operators = "~;:,.${}()[]<>+-*/%|&!=";
 
 static char *oneline_comment_operators = "//";
 
@@ -97,6 +97,8 @@ char *composite_list_string[] = {
 
     "?",
     "??",
+
+    "~",
 };
 
 simplejs_composite_token_entry_t composite_token_list[sizeof(composite_list_string) / sizeof(*composite_list_string)];
