@@ -74,6 +74,45 @@ void SIMPLEJS_API simplejs_destroy_vm_memory(simplejs_vm_memory_t *vm_memory)
     simplejs_hook_mfree(vm_memory);
 }
 
+bool SIMPLEJS_API simplejs_vm_memory_find_alloc_start(simplejs_vm_memory_t *vm_memory, pvoid address, void **out, size_t *out_size)
+{
+    bool ret = false;
+
+    size_t page_size = simplejs_get_page_size();
+
+    SIMPLEJS_ASSERT(vm_memory != NULL);
+    SIMPLEJS_ASSERT(out != NULL);
+    SIMPLEJS_ASSERT(out_size != NULL);
+
+    simplejs_spinlock_acquire(&vm_memory->memory_pages_lock, true);
+
+    for (size_t i = 0; i < vm_memory->memory_size_in_pages; i++)
+    {
+        simplejs_vm_memory_page_t *page = &vm_memory->memory_pages[i];
+
+        if ((page->flags & SIMPLEJS_VM_MEMORY_PAGE_ALLOCATED_FLAG) && page->allocated_pages != 0)
+        {
+            void *alloc_start = &((uint8_t *)vm_memory->memory_data)[i * page_size];
+            void *alloc_end = &((uint8_t *)alloc_start)[(size_t)page->allocated_pages * page_size];
+
+            if (address >= alloc_start &&
+                address < alloc_end)
+            {
+                *out = alloc_start;
+                *out_size = (uintptr_t)alloc_end - (uintptr_t)alloc_start;
+
+                ret = true;
+                goto result;
+            }
+        }
+    }
+
+result:
+    simplejs_spinlock_release(&vm_memory->memory_pages_lock);
+
+    return ret;
+}
+
 pvoid SIMPLEJS_API simplejs_vm_memory_alloc(simplejs_vm_memory_t *vm_memory, size_t size_in_bytes)
 {
     void *ptr = NULL;

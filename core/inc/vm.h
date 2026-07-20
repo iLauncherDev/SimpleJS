@@ -24,6 +24,8 @@ typedef struct simplejs_vm_state
     simplejs_status_t status;
 
     simplejs_variable_t return_variable;
+    simplejs_variable_t _temp_return_variable;
+
     simplejs_variable_t variables[16];
     simplejs_variable_t global_variable;
 
