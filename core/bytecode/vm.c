@@ -379,6 +379,9 @@ simplejs_status_t simplejs_bytecode_opcode_alloc_args(simplejs_vm_t *vm, simplej
 
     memclr(function_header, function_header_size);
 
+    simplejs_variable_dereference(return_variable);
+    simplejs_variable_init_undefined(return_variable);
+
     function_header->return_variable = return_variable;
     function_header->argument_count = instruction->imm;
 
@@ -405,6 +408,25 @@ simplejs_status_t simplejs_bytecode_opcode_free_args(simplejs_vm_t *vm, simplejs
     {
         simplejs_variable_dereference(&function_header->arguments[i]);
     }
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_get_return_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = function_header->return_variable;
+
+    SIMPLEJS_ASSERT(in != NULL);
+
+    simplejs_variable_assign(out, in);
 
 result:
     return status;
@@ -848,9 +870,9 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
         }                                                                                                                        \
                                                                                                                                  \
         simplejs_number_t *op_a = &v_a->value.number;                                                                            \
-        simplejs_number_t op_b = {.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED};                                                       \
+        simplejs_number_t op_b = {.type = SIMPLEJS_NUMBER_TYPE_BOOLEAN};                                                         \
                                                                                                                                  \
-        simplejs_number_execute_alu(SIMPLEJS_NUMBER_ALU_##upper_name, NULL, op_a, &op_b);                                        \
+        simplejs_number_execute_alu(SIMPLEJS_NUMBER_ALU_##upper_name, op_a, op_a, &op_b);                                        \
                                                                                                                                  \
     result:                                                                                                                      \
         return status;                                                                                                           \
@@ -936,6 +958,7 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_ALLOC_ARGS] = simplejs_bytecode_opcode_alloc_args,
     [SIMPLEJS_BYTECODE_OPCODE_FREE_ARGS] = simplejs_bytecode_opcode_free_args,
 
+    [SIMPLEJS_BYTECODE_OPCODE_GET_RETURN_VAR] = simplejs_bytecode_opcode_get_return_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_RETURN_VAR] = simplejs_bytecode_opcode_set_return_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_INIT_VAR] = simplejs_bytecode_opcode_init_var,
@@ -1027,7 +1050,7 @@ simplejs_status_t SIMPLEJS_API simplejs_execute_vm(simplejs_vm_t *vm)
                                  instruction_size),
                              result, status);
 
-    simplejs_bytecode_decode(&instruction, (uint8_t *)vm->state.instruction_pointer, &instruction_size);
+    simplejs_bytecode_decode((uint8_t *)vm->state.instruction_pointer, &instruction, &instruction_size);
 
     // simplejs_printf("/* ip: %p */ ", (void *)vm->state.instruction_pointer);
     // simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer + instruction_size);

@@ -9,13 +9,18 @@
 //var b = 2;
 //var result = a + b;
 
+function indirect_return(a)
+{
+    return a;
+}
+
 function my_function(a)
 {
     //var result;
 //
     //result = 20;
 
-    return (a + 5.31) * 0.2345;
+    return (indirect_return(a) + 5.31) * 0.2345;
 }
 
 var a = 0;
@@ -27,13 +32,15 @@ var stuckRef = globalThis;
 
 label loop;
 
+var test_plugin_function = globalThis["test_plugin_function"];
+
 var max_iteration = 1000000;
 
 for (var index = 0; index <= max_iteration; index+=max_iteration/100)
 {
     globalThis[index] = my_function(index);
 
-    globalThis["test_plugin_function"](globalThis[index]);
+    test_plugin_function(globalThis[index]);
 }
 
 globalThis[0.123456789123456789] = 0;
