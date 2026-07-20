@@ -878,9 +878,9 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
         }                                                                                                                        \
                                                                                                                                  \
         simplejs_number_t *op_a = &v_a->value.number;                                                                            \
-        simplejs_number_t op_b = {.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED};                                                       \
+        simplejs_number_t op_b = {.type = SIMPLEJS_NUMBER_TYPE_BOOLEAN};                                                         \
                                                                                                                                  \
-        simplejs_number_execute_alu(SIMPLEJS_NUMBER_ALU_##upper_name, NULL, op_a, &op_b);                                        \
+        simplejs_number_execute_alu(SIMPLEJS_NUMBER_ALU_##upper_name, op_a, op_a, &op_b);                                        \
                                                                                                                                  \
     result:                                                                                                                      \
         return status;                                                                                                           \
@@ -1054,7 +1054,7 @@ simplejs_status_t SIMPLEJS_API simplejs_execute_vm(simplejs_vm_t *vm)
                                  instruction_size),
                              result, status);
 
-    simplejs_bytecode_decode(&instruction, (uint8_t *)vm->state.instruction_pointer, &instruction_size);
+    simplejs_bytecode_decode((uint8_t *)vm->state.instruction_pointer, &instruction, &instruction_size);
 
     // simplejs_printf("/* ip: %p */ ", (void *)vm->state.instruction_pointer);
     // simplejs_disasm_bytecode(instruction, vm->state.instruction_pointer + instruction_size);
