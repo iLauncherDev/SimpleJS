@@ -224,6 +224,20 @@ struct simplejs_parser_ctx
     simplejs_token_t *current_token;
 };
 
+typedef bool (*simplejs_get_scoped_callback_f)(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);
+
+bool simplejs_get_scoped_var_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);
+bool simplejs_get_scoped_label_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);
+
+bool simplejs_get_scoped_output(
+    simplejs_parser_ctx_t *parser_ctx, void *context, void *out,
+    simplejs_get_scoped_callback_f callback);
+
+bool simplejs_get_scoped_output_alt(
+    simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t *node, void *context, void *out,
+    simplejs_get_scoped_callback_f callback,
+    bool out_of_function_search);
+
 const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type);
 simplejs_status_t simplejs_parse_expression(
     simplejs_parser_ctx_t *parser_ctx, simplejs_list_entry_t **start_token, simplejs_ast_node_t **out, int min_bp,

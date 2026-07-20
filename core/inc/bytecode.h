@@ -2,7 +2,6 @@
 #include "default.h"
 #include "variable.h"
 
-#define SIMPLEJS_BYTECODE_HEADER_SIZE 4
 #define SIMPLEJS_BYTECODE_VERSION 1
 
 #define SIMPLEJS_BYTECODE_BASE_INSTRUCTION_SIZE 4
@@ -28,6 +27,7 @@ typedef enum
     SIMPLEJS_BYTECODE_OPCODE_ALLOC_ARGS,
     SIMPLEJS_BYTECODE_OPCODE_FREE_ARGS,
 
+    SIMPLEJS_BYTECODE_OPCODE_GET_RETURN_VAR,
     SIMPLEJS_BYTECODE_OPCODE_SET_RETURN_VAR,
 
     SIMPLEJS_BYTECODE_OPCODE_INIT_VAR,
@@ -93,14 +93,41 @@ typedef enum
 
 #pragma pack(push, 1)
 
+#define SIMPLEJS_BYTECODE_HEADER_DEBUG_INFO_FLAG (1 << 0)
+
 typedef struct simplejs_bytecode_header
 {
-    uint8_t size_low;
-    uint8_t size_high;
+    uint16_t size;
+    uint16_t version;
+    uint32_t flags;
 
-    uint8_t version_low;
-    uint8_t version_high;
+    uint16_t debug_info_entry_size;
+
+    struct
+    {
+        uint32_t start, end;
+    } code_offset;
+
+    struct
+    {
+        uint32_t start, end;
+    } debug_info_offset;
 } simplejs_bytecode_header_t;
+
+typedef struct simplejs_bytecode_debug_info
+{
+    struct
+    {
+        uint32_t start, end;
+    } code_offset;
+
+    struct
+    {
+        uint32_t start, end;
+    } source_offset;
+
+    uint32_t children_debug_count;
+} simplejs_bytecode_debug_info_t;
 
 #pragma pack(pop)
 
@@ -114,7 +141,8 @@ typedef struct simplejs_bytecode_instruction
     uint8_t reg_1 : 4;
     uint8_t reg_2 : 4;
 
-    union {
+    union
+    {
         uint32_t imm;
         int32_t imm_signed;
     };
@@ -142,4 +170,9 @@ typedef enum
 void simplejs_bytecode_encode(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size);
 
 void simplejs_bytecode_get_opcode_size(uint8_t *buffer, uint8_t *instruction_size);
-void simplejs_bytecode_decode(simplejs_bytecode_instruction_t *instruction, uint8_t *buffer, uint8_t *instruction_size);
+void simplejs_bytecode_decode(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size);
+
+void simplejs_bytecode_header_decode(uint8_t *buffer, simplejs_bytecode_header_t *header);
+void simplejs_bytecode_header_encode(uint8_t *buffer, simplejs_bytecode_header_t *header);
+void simplejs_bytecode_debug_info_decode(uint8_t *buffer, simplejs_bytecode_debug_info_t *debug_info);
+void simplejs_bytecode_debug_info_encode(uint8_t *buffer, simplejs_bytecode_debug_info_t *debug_info);

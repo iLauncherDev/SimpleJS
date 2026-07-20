@@ -103,7 +103,7 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
     return "Unknown";
 }
 
-bool simplejs_get_scoped_var_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out)
+bool simplejs_get_scoped_var_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function)
 {
     simplejs_utf8_string_t *string = context;
 
@@ -127,7 +127,7 @@ bool simplejs_get_scoped_var_callback(simplejs_ast_scope_context_t *scope_contex
     return false;
 }
 
-bool simplejs_get_scoped_label_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out)
+bool simplejs_get_scoped_label_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function)
 {
     simplejs_utf8_string_t *string = context;
 
@@ -154,37 +154,9 @@ bool simplejs_get_scoped_label_callback(simplejs_ast_scope_context_t *scope_cont
     return false;
 }
 
-bool simplejs_get_function_output(
-    simplejs_parser_ctx_t *parser_ctx, simplejs_utf8_string_t *name, simplejs_utf8_string_t **out)
-{
-    SIMPLEJS_ASSERT(parser_ctx != NULL);
-    SIMPLEJS_ASSERT(name != NULL);
-    SIMPLEJS_ASSERT(out != NULL);
-
-    simplejs_list_entry_t *end_function = &parser_ctx->ast_function_list;
-    simplejs_list_entry_t *current_function = end_function->next;
-
-    while (current_function != end_function)
-    {
-        simplejs_ast_node_t *node = simplejs_get_list_entry_structure(current_function);
-        simplejs_ast_function_context_t *function_context = node->context;
-
-        bool result = function_context->name && !strcmp(function_context->name->buffer, name->buffer);
-        if (result)
-        {
-            *out = function_context->name;
-            return true;
-        }
-
-        current_function = current_function->next;
-    }
-
-    return false;
-}
-
 bool simplejs_get_scoped_output(
     simplejs_parser_ctx_t *parser_ctx, void *context, void *out,
-    bool (*callback)(simplejs_ast_scope_context_t *scope_context, void *context, void *out))
+    simplejs_get_scoped_callback_f callback)
 {
     SIMPLEJS_ASSERT(parser_ctx != NULL);
     SIMPLEJS_ASSERT(callback != NULL);
@@ -201,7 +173,7 @@ bool simplejs_get_scoped_output(
         simplejs_list_entry_t *prev_scope = current_scope->prev;
         simplejs_ast_scope_context_t *scope_context = simplejs_get_list_entry_structure(current_scope);
 
-        bool result = callback(scope_context, context, out);
+        bool result = callback(scope_context, context, out, false);
         if (result)
             return true;
 
@@ -213,12 +185,14 @@ bool simplejs_get_scoped_output(
 
 bool simplejs_get_scoped_output_alt(
     simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t *node, void *context, void *out,
-    bool (*callback)(simplejs_ast_scope_context_t *scope_context, void *context, void *out))
+    simplejs_get_scoped_callback_f callback,
+    bool out_of_function_search)
 {
     SIMPLEJS_ASSERT(parser_ctx != NULL);
     SIMPLEJS_ASSERT(callback != NULL);
     SIMPLEJS_ASSERT(out != NULL);
 
+    bool is_out_of_function = false;
     simplejs_ast_node_t *current_ast = node;
 
     while (current_ast != NULL)
@@ -249,12 +223,17 @@ bool simplejs_get_scoped_output_alt(
 
         simplejs_printf("level change (type: '%s')\n", simplejs_get_ast_node_type_string(current_ast->type));
 
-        bool result = callback(scope_context, context, out);
+        bool result = callback(scope_context, context, out, is_out_of_function);
         if (result)
             return true;
 
         if (will_quit)
-            break;
+        {
+            is_out_of_function = true;
+
+            if (!out_of_function_search)
+                break;
+        }
 
     skip_ast:
         current_ast = current_ast->parent_node;
@@ -1054,6 +1033,8 @@ static void simplejs_dump_ast_node(simplejs_list_entry_t *ast_list_entry, int sp
         simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
 
         simplejs_printf_space(spaces, "AST Node (Type: %s)\n", simplejs_get_ast_node_type_string(ast->type));
+        if (!ast->diagnostic_token)
+            simplejs_printf_space(spaces, "No diagnostic token\n");
 
         switch (ast->type)
         {
@@ -1837,7 +1818,7 @@ result:
     }
     else
     {
-        //simplejs_dump_ast_tree(parser_ctx);
+        simplejs_dump_ast_tree(parser_ctx);
     }
 
     return status;

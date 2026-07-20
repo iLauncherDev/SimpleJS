@@ -2,13 +2,19 @@
 
 simplejs_status_t test_plugin_function(simplejs_function_header_t *function_header)
 {
+    char tempBuffer[4096];
+    tempBuffer[sizeof(tempBuffer) - 1] = '\0';
+
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_printf("hello from test_plugin_function! (%u args)\n", function_header->argument_count);
 
     for (uint32_t i = 0; i < function_header->argument_count; i++)
     {
-        simplejs_printf("argument %u from test_plugin_function! (%f value)\n", i, function_header->arguments[i].value.number.value.f64);
+        char *out;
+        simplejs_variable_to_string(&function_header->arguments[i], tempBuffer, sizeof(tempBuffer), &out);
+
+        simplejs_printf("argument %u from test_plugin_function! (%s value)\n", i, out);
     }
 
     return status;

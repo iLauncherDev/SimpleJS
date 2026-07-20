@@ -1,4 +1,5 @@
 #include <bytecode.h>
+#include <lib/byte_utils.h>
 
 void simplejs_bytecode_encode(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size)
 {
@@ -26,7 +27,7 @@ void simplejs_bytecode_encode(uint8_t *buffer, simplejs_bytecode_instruction_t *
     }
 }
 
-void simplejs_bytecode_decode_imm16(simplejs_bytecode_instruction_t *instruction, uint8_t *buffer, uint8_t *instruction_size)
+void simplejs_bytecode_decode_imm16(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size)
 {
     uint32_t b3 = *buffer++;
     uint32_t b4 = *buffer++;
@@ -34,7 +35,7 @@ void simplejs_bytecode_decode_imm16(simplejs_bytecode_instruction_t *instruction
     instruction->imm = (int16_t)((b3 << 0) | (b4 << 8));
 }
 
-void simplejs_bytecode_decode_imm32(simplejs_bytecode_instruction_t *instruction, uint8_t *buffer, uint8_t *instruction_size)
+void simplejs_bytecode_decode_imm32(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size)
 {
     uint32_t b3 = *buffer++;
     uint32_t b4 = *buffer++;
@@ -46,7 +47,7 @@ void simplejs_bytecode_decode_imm32(simplejs_bytecode_instruction_t *instruction
     instruction->imm = (b3 << 0) | (b4 << 8) | (b5 << 16) | (b6 << 24);
 }
 
-void (*simplejs_bytecode_decode_immX[])(simplejs_bytecode_instruction_t *instruction, uint8_t *buffer, uint8_t *instruction_size) = {
+void (*simplejs_bytecode_decode_immX[])(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size) = {
     simplejs_bytecode_decode_imm16,
     simplejs_bytecode_decode_imm32,
 };
@@ -62,7 +63,7 @@ void simplejs_bytecode_get_opcode_size(uint8_t *buffer, uint8_t *instruction_siz
         (SIMPLEJS_BYTECODE_EXTENDED_INSTRUCTION_SIZE & cond) | (SIMPLEJS_BYTECODE_BASE_INSTRUCTION_SIZE & ~cond);
 }
 
-void simplejs_bytecode_decode(simplejs_bytecode_instruction_t *instruction, uint8_t *buffer, uint8_t *instruction_size)
+void simplejs_bytecode_decode(uint8_t *buffer, simplejs_bytecode_instruction_t *instruction, uint8_t *instruction_size)
 {
     uint8_t b1 = *buffer++;
     uint8_t b2 = *buffer++;
@@ -75,5 +76,57 @@ void simplejs_bytecode_decode(simplejs_bytecode_instruction_t *instruction, uint
     instruction->reg_1 = (b2 >> 0) & 0x0F;
     instruction->reg_2 = (b2 >> 4) & 0x0F;
 
-    simplejs_bytecode_decode_immX[instruction->extended_opcode](instruction, buffer, instruction_size);
+    simplejs_bytecode_decode_immX[instruction->extended_opcode](buffer, instruction, instruction_size);
+}
+
+void simplejs_bytecode_header_decode(uint8_t *buffer, simplejs_bytecode_header_t *header)
+{
+    simplejs_buffer_to_struct_field(header, &header->size, uint16_t, buffer);
+    simplejs_buffer_to_struct_field(header, &header->version, uint16_t, buffer);
+    simplejs_buffer_to_struct_field(header, &header->flags, uint32_t, buffer);
+
+    simplejs_buffer_to_struct_field(header, &header->debug_info_entry_size, uint16_t, buffer);
+
+    simplejs_buffer_to_struct_field(header, &header->code_offset.start, uint32_t, buffer);
+    simplejs_buffer_to_struct_field(header, &header->code_offset.end, uint32_t, buffer);
+
+    simplejs_buffer_to_struct_field(header, &header->debug_info_offset.start, uint32_t, buffer);
+    simplejs_buffer_to_struct_field(header, &header->debug_info_offset.end, uint32_t, buffer);
+}
+
+void simplejs_bytecode_header_encode(uint8_t *buffer, simplejs_bytecode_header_t *header)
+{
+    simplejs_struct_field_to_buffer(header, &header->size, uint16_t, buffer);
+    simplejs_struct_field_to_buffer(header, &header->version, uint16_t, buffer);
+    simplejs_struct_field_to_buffer(header, &header->flags, uint32_t, buffer);
+
+    simplejs_struct_field_to_buffer(header, &header->debug_info_entry_size, uint16_t, buffer);
+
+    simplejs_struct_field_to_buffer(header, &header->code_offset.start, uint32_t, buffer);
+    simplejs_struct_field_to_buffer(header, &header->code_offset.end, uint32_t, buffer);
+
+    simplejs_struct_field_to_buffer(header, &header->debug_info_offset.start, uint32_t, buffer);
+    simplejs_struct_field_to_buffer(header, &header->debug_info_offset.end, uint32_t, buffer);
+}
+
+void simplejs_bytecode_debug_info_decode(uint8_t *buffer, simplejs_bytecode_debug_info_t *debug_info)
+{
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->code_offset.start, uint32_t, buffer);
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->code_offset.end, uint32_t, buffer);
+
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->source_offset.start, uint32_t, buffer);
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->source_offset.end, uint32_t, buffer);
+
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->children_debug_count, uint32_t, buffer);
+}
+
+void simplejs_bytecode_debug_info_encode(uint8_t *buffer, simplejs_bytecode_debug_info_t *debug_info)
+{
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->code_offset.start, uint32_t, buffer);
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->code_offset.end, uint32_t, buffer);
+
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->source_offset.start, uint32_t, buffer);
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->source_offset.end, uint32_t, buffer);
+
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->children_debug_count, uint32_t, buffer);
 }

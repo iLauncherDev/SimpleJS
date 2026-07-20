@@ -15,6 +15,7 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/lib/status.c
 
     ${SIMPLEJS_PATH}/lib/float_utils.c
+    ${SIMPLEJS_PATH}/lib/byte_utils.c
 
     ${SIMPLEJS_PATH}/lib/s_string.c
 

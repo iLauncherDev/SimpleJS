@@ -25,18 +25,29 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
         simplejs_number_t *number = &variable->value.number;
 
-        if (number->type == SIMPLEJS_NUMBER_TYPE_BOOLEAN)
+        switch (number->type)
         {
+        case SIMPLEJS_NUMBER_TYPE_UNDEFINED:
+            *out = "undefined";
+            break;
+
+        case SIMPLEJS_NUMBER_TYPE_NULL:
+            *out = "null";
+            break;
+
+        case SIMPLEJS_NUMBER_TYPE_BOOLEAN:
             *out = number->value.boolean ? "true" : "false";
-        }
-        else
-        {
+            break;
+
+        default:
             char tempString[512] = {0};
 
             simplejs_convert_double_to_string(tempBuffer, tempBufferSize - 1, simplejs_number_get_float64(&variable->value.number));
 
             *out = tempBuffer;
+            break;
         }
+
         break;
     }
 
