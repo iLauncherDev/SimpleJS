@@ -44,7 +44,8 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_ALU_INC,
     SIMPLEJS_AST_NODE_TYPE_ALU_DEC,
 
-    SIMPLEJS_AST_NODE_TYPE_ALU_NOT,
+    SIMPLEJS_AST_NODE_TYPE_ALU_LOGICAL_NOT,
+    SIMPLEJS_AST_NODE_TYPE_ALU_BITWISE_NOT,
     SIMPLEJS_AST_NODE_TYPE_ALU_NEG,
 
     SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL,
@@ -133,6 +134,7 @@ typedef struct simplejs_ast_node
     simplejs_ast_node_type_t type;
 
     simplejs_token_t *diagnostic_token;
+    simplejs_linemap_offset_t diagnostic_offset;
 
     void *parent_node;
     void *context;

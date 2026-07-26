@@ -16,18 +16,12 @@ typedef struct simplejs_compiler_debug
 
     uint32_t _debug_offset;
 
+    uint32_t flags;
     uint32_t children_list_count;
     simplejs_list_entry_t children_list_entry;
 
-    struct
-    {
-        uint32_t start, end;
-    } code_offset;
-
-    struct
-    {
-        uint32_t start, end;
-    } source_offset;
+    simplejs_linemap_offset_t code_offset;
+    simplejs_linemap_offset_t source_offset;
 
     simplejs_list_entry_t _temp_list_entry;
     simplejs_list_entry_t list_entry;
@@ -41,7 +35,7 @@ typedef struct simplejs_compiler_instruction
 
     simplejs_bytecode_instruction_t instruction;
 
-    struct 
+    struct
     {
         simplejs_ast_node_t *node;
         uint32_t data_offset;
@@ -60,6 +54,8 @@ typedef struct simplejs_compiler_ast_info
 
 typedef struct simplejs_compiler_reg_info
 {
+    uint32_t debug_flags;
+
     bool is_sub_op, is_sub_assign, avoid_refetch;
     bool is_write, have_parent;
     uint8_t reg_a, reg_b, reg_parent;
