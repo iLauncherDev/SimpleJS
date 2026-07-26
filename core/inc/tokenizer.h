@@ -1,6 +1,7 @@
 #pragma once
 #include "default.h"
 #include "number.h"
+#include "linemap.h"
 #include "diagnostic.h"
 #include "lib/utf8.h"
 #include <simplejs/tokenizer.h>
@@ -50,10 +51,7 @@ typedef struct simplejs_token
         simplejs_number_t number;
     };
 
-    struct
-    {
-        uint64_t start, end;
-    } offset;
+    simplejs_linemap_offset_t offset;
 
     simplejs_list_entry_t list_entry;
 
@@ -64,14 +62,18 @@ typedef struct simplejs_token
 struct simplejs_token_ctx
 {
     char *file_path;
-    simplejs_utf8_string_t *code;
+    simplejs_map_buffer_t *source_code;
+
+    simplejs_linemap_ctx_t *linemap_ctx;
     simplejs_token_state_t state;
     struct
     {
         bool startWithZeroPrefix;
     } numberState;
 
-    size_t offset, len, index;
+    simplejs_char_cache_fetch_t *cache_fetch;
+
+    uint64_t offset, len, index;
     size_t template_expr_level;
 
     simplejs_list_entry_t token_list;

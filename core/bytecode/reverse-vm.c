@@ -208,7 +208,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
     [SIMPLEJS_BYTECODE_OPCODE_INC_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_DEC_VAR] = simplejs_reverse_bytecode_opcode_nop,
 
-    [SIMPLEJS_BYTECODE_OPCODE_NOT_VAR] = simplejs_reverse_bytecode_opcode_nop,
+    [SIMPLEJS_BYTECODE_OPCODE_LOGICAL_NOT_VAR] = simplejs_reverse_bytecode_opcode_nop,
+    [SIMPLEJS_BYTECODE_OPCODE_BITWISE_NOT_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_NEG_VAR] = simplejs_reverse_bytecode_opcode_nop,
 
     [SIMPLEJS_BYTECODE_OPCODE_EQUAL_VAR] = simplejs_reverse_bytecode_opcode_nop,

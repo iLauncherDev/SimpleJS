@@ -49,6 +49,14 @@ typedef struct simplejs_reverse_vm_state
     bool vm_stopped;
 } simplejs_reverse_vm_state_t;
 
+typedef struct simplejs_vm_crash_hint
+{
+    bool is_valid_hint;
+
+    uint32_t required_flags;
+    uint32_t children_flags;
+} simplejs_vm_crash_hint_t;
+
 #define SIMPLEJS_VM_MEMORY_PAGE_ALLOCATED_FLAG (1 << 0)
 
 typedef struct simplejs_vm_memory_page
@@ -75,12 +83,20 @@ struct simplejs_vm
 
     simplejs_vm_state_t state;
     simplejs_reverse_vm_state_t reverse_state;
+    simplejs_vm_crash_hint_t crash_hint;
 
     uint8_t *stack;
     size_t stack_size;
 
     uint8_t *reverse_stack;
     size_t reverse_stack_size;
+};
+
+struct simplejs_vm_executable
+{
+    size_t header_size;
+    size_t executable_size;
+    simplejs_linemap_ctx_t *linemap_ctx;
 };
 
 typedef simplejs_status_t (*simplejs_bytecode_opcode_jumptable_t)(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction);

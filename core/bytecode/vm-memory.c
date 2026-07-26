@@ -82,7 +82,6 @@ bool SIMPLEJS_API simplejs_vm_memory_find_alloc_start(simplejs_vm_memory_t *vm_m
 
     SIMPLEJS_ASSERT(vm_memory != NULL);
     SIMPLEJS_ASSERT(out != NULL);
-    SIMPLEJS_ASSERT(out_size != NULL);
 
     simplejs_spinlock_acquire(&vm_memory->memory_pages_lock, true);
 
@@ -99,7 +98,8 @@ bool SIMPLEJS_API simplejs_vm_memory_find_alloc_start(simplejs_vm_memory_t *vm_m
                 address < alloc_end)
             {
                 *out = alloc_start;
-                *out_size = (uintptr_t)alloc_end - (uintptr_t)alloc_start;
+                if (out_size)
+                    *out_size = (uintptr_t)alloc_end - (uintptr_t)alloc_start;
 
                 ret = true;
                 goto result;

@@ -8,6 +8,7 @@
 #include <simplejs/compiler.h>
 #include <simplejs/vm.h>
 #include <simplejs/builtin_object/dynamic_object.h>
+#include <simplejs/lib/map_buffer_file.h>
 
 #include <time.h>
 
@@ -250,14 +251,14 @@ uintptr_t gc_thread_callback(simplejs_thread_t *thread)
 int main(int argc, char **argv)
 {
     char *abs_file_path = NULL;
+    simplejs_map_buffer_t *source_code = NULL;
+    simplejs_thread_t *gc_thread = NULL;
     simplejs_token_ctx_t *token_ctx = NULL;
     simplejs_parser_ctx_t *parser_ctx = NULL;
     simplejs_compiler_ctx_t *compiler_ctx = NULL;
     simplejs_vm_memory_t *vm_memory = NULL;
     simplejs_vm_t *vm = NULL;
     simplejs_object_t *global_object = NULL;
-    simplejs_utf8_string_t *code = NULL;
-    simplejs_thread_t *gc_thread = NULL;
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
@@ -287,10 +288,9 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    code = readFile(abs_file_path);
-    if (!code)
+    status = simplejs_create_map_buffer_file(&source_code, abs_file_path);
+    if (!SIMPLEJS_SUCCESS(status))
     {
-        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
         goto result;
     }
 
@@ -301,7 +301,7 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    status = simplejs_tokenize(abs_file_path, code, &token_ctx);
+    status = simplejs_tokenize(abs_file_path, source_code, &token_ctx);
     if (!SIMPLEJS_SUCCESS(status))
     {
         printf("simplejs_tokenize error\n");
@@ -375,15 +375,14 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    void *sandbox_executable = simplejs_vm_memory_alloc(vm_memory, executable_size);
-    if (!sandbox_executable)
+    simplejs_vm_executable_t *vm_executable = simplejs_vm_upload_executable(vm_memory, simplejs_token_ctx_get_linemap_ctx(token_ctx), executable, executable_size);
+    if (!vm_executable)
     {
-        printf("executable is too big!\n");
+        printf("vm_executable is too big!\n");
 
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
         goto result;
     }
-    memcpy(sandbox_executable, executable, executable_size);
 
     simplejs_printf("start bloat memory iteration\n");
     for (int i = 0; i < 2; i++)
@@ -424,10 +423,14 @@ int main(int argc, char **argv)
     simplejs_vm_set_global_variable(vm, &global_variable);
     simplejs_gc_add_object(global_object);
 
+    void *sandbox_executable;
+    size_t sandbox_executable_size;
+    simplejs_vm_executable_get_pointer(vm_executable, &sandbox_executable, &sandbox_executable_size);
+
     simplejs_function_t main_function = {
         .type = SIMPLEJS_FUNCTION_TYPE_NATIVE,
         .value = {
-            .instruction_pointer = simplejs_compiler_get_executable_entry_point(sandbox_executable, executable_size),
+            .instruction_pointer = simplejs_compiler_get_executable_entry_point(sandbox_executable, sandbox_executable_size),
         },
     };
 
@@ -467,8 +470,8 @@ result:
         simplejs_destroy_thread(gc_thread);
     }
 
-    if (code)
-        free(code);
+    if (source_code)
+        simplejs_destroy_map_buffer(source_code);
 
     if (abs_file_path)
         free(abs_file_path);

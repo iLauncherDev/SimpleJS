@@ -98,6 +98,7 @@ char *composite_list_string[] = {
     "?",
     "??",
 
+    "!",
     "~",
 };
 
@@ -219,9 +220,9 @@ static simplejs_token_ctx_t *simplejs_alloc_token_ctx()
     return ret;
 }
 
-static simplejs_utf8_string_t *simplejs_create_substring(simplejs_token_ctx_t *ctx, size_t start, size_t end)
+static simplejs_utf8_string_t *simplejs_create_substring(simplejs_token_ctx_t *ctx, uint64_t start, uint64_t end)
 {
-    size_t len = end - start;
+    uint64_t len = end - start;
     simplejs_utf8_string_t *string;
 
     SIMPLEJS_ASSERT(start < end);
@@ -239,9 +240,9 @@ static simplejs_utf8_string_t *simplejs_create_substring(simplejs_token_ctx_t *c
     string->buffer = (void *)((uint8_t *)string + sizeof(*string));
     string->max_size = buffer_size - sizeof(*string);
 
-    for (size_t i = 0; i < len; i++)
+    for (uint64_t i = 0; i < len; i++)
     {
-        string->buffer[i] = simplejs_safe_string_fetch(ctx->code, start + i);
+        simplejs_fetch_char_from_cache(ctx->cache_fetch, start + i, &string->buffer[i]);
     }
 
     string->valid_size = simplejs_strnlen(string->buffer, string->max_size);
@@ -895,8 +896,17 @@ void SIMPLEJS_API simplejs_tokenize_dump_tokens(simplejs_token_ctx_t *ctx)
     }
 }
 
+psimplejs_linemap_ctx_t SIMPLEJS_API simplejs_token_ctx_get_linemap_ctx(simplejs_token_ctx_t *ctx)
+{
+    SIMPLEJS_ASSERT(ctx != NULL);
+
+    return ctx->linemap_ctx;
+}
+
 void SIMPLEJS_API simplejs_free_token_ctx(simplejs_token_ctx_t *ctx)
 {
+    SIMPLEJS_ASSERT(ctx != NULL);
+
     simplejs_list_entry_t *end = &ctx->token_list;
     simplejs_list_entry_t *current = end->next;
 
@@ -911,51 +921,53 @@ void SIMPLEJS_API simplejs_free_token_ctx(simplejs_token_ctx_t *ctx)
         current = next;
     }
 
-    if (ctx->file_path)
-        simplejs_hook_mfree(ctx->file_path);
+    if (ctx->linemap_ctx)
+        simplejs_free_linemap_ctx(ctx->linemap_ctx);
 
     simplejs_hook_mfree(ctx);
 }
 
 #define simplejs_tokenize_flush_identifier(label, status) SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_token(ctx, SIMPLEJS_TOKEN_TYPE_IDENTIFIER, NULL), label, status)
 
-simplejs_status_t SIMPLEJS_API simplejs_tokenize(char *file_path, simplejs_utf8_string_t *code, simplejs_token_ctx_t **out)
+simplejs_status_t SIMPLEJS_API simplejs_tokenize(char *file_path, simplejs_map_buffer_t *source_code, simplejs_token_ctx_t **out)
 {
-    SIMPLEJS_ASSERT(code != NULL);
+    SIMPLEJS_ASSERT(source_code != NULL);
     SIMPLEJS_ASSERT(out != NULL);
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-    simplejs_token_ctx_t *ctx = simplejs_alloc_token_ctx();
+    simplejs_linemap_ctx_t *linemap_ctx = NULL;
+    simplejs_token_ctx_t *ctx = NULL;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_generate_linemap(file_path, source_code, &linemap_ctx), result, status);
+
+    ctx = simplejs_alloc_token_ctx();
     if (!ctx)
     {
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
         goto result;
     }
 
-    ctx->file_path = strdup(file_path);
-    if (!ctx->file_path)
-    {
-        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
-        goto result;
-    }
+    ctx->linemap_ctx = linemap_ctx;
 
-    ctx->code = code;
+    ctx->file_path = linemap_ctx->file_path;
+    ctx->source_code = linemap_ctx->source_code;
     ctx->state = SIMPLEJS_TOKEN_STATE_IDLE;
 
-    for (ctx->index = 0; ctx->index < code->valid_size; ctx->index++)
-    {
-        char chr1 = simplejs_safe_string_fetch(code, ctx->index + 0);
-        char chr2 = simplejs_safe_string_fetch(code, ctx->index + 1);
-        char chr3 = simplejs_safe_string_fetch(code, ctx->index + 2);
-        char chr4 = simplejs_safe_string_fetch(code, ctx->index + 3);
+    ctx->cache_fetch = &ctx->linemap_ctx->cache_fetch;
 
+    for (ctx->index = 0; simplejs_fetch_char_from_cache(ctx->cache_fetch, ctx->index, NULL); ctx->index++)
+    {
         char str4[] = {
-            chr1,
-            chr2,
-            chr3,
-            chr4,
+            '\0',
+            '\0',
+            '\0',
+            '\0',
             '\0',
         };
+        for (int i = 0; i < sizeof(str4) - 1; i++)
+            simplejs_fetch_char_from_cache(ctx->cache_fetch, ctx->index + (uint64_t)i, &str4[i]);
+
+        char chr1 = str4[0];
 
         if (string_includes(useless_chars, chr1))
         {
@@ -1168,7 +1180,16 @@ simplejs_status_t SIMPLEJS_API simplejs_tokenize(char *file_path, simplejs_utf8_
 result:
     if (!SIMPLEJS_SUCCESS(status))
     {
-        simplejs_free_token_ctx(ctx);
+        if (linemap_ctx)
+        {
+            if (ctx)
+                ctx->linemap_ctx = NULL;
+
+            simplejs_free_linemap_ctx(linemap_ctx);
+        }
+
+        if (ctx)
+            simplejs_free_token_ctx(ctx);
     }
     else
     {
