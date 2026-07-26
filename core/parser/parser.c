@@ -61,7 +61,8 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_INC);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_DEC);
 
-        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_NOT);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_LOGICAL_NOT);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_BITWISE_NOT);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_NEG);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ALU_EQUAL);
@@ -1178,14 +1179,13 @@ void simplejs_present_parser_diagnostic(
     simplejs_diagnostic_message_t diagnostic_message;
     simplejs_init_diagnostic_message(&diagnostic_message);
 
-    diagnostic_message.file_path = parser_ctx->token_ctx->file_path;
-    diagnostic_message.code = parser_ctx->token_ctx->code;
+    diagnostic_message.linemap_ctx = parser_ctx->token_ctx->linemap_ctx;
+
+    diagnostic_message.line_offset.start = ast_token->offset.start;
+    diagnostic_message.line_offset.end = target_token->offset.end;
 
     diagnostic_message.token_offset.start = target_token->offset.start;
     diagnostic_message.token_offset.end = target_token->offset.end;
-
-    diagnostic_message.line_offset.start = ast_token->offset.start;
-    diagnostic_message.line_offset.end = diagnostic_message.token_offset.end;
 
     diagnostic_message.type = type;
     diagnostic_message.message = message;

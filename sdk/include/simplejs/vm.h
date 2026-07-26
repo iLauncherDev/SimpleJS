@@ -1,14 +1,22 @@
 #pragma once
 #include "object.h"
+#include "linemap.h"
 
 typedef struct simplejs_vm_memory simplejs_vm_memory_t;
 typedef struct simplejs_vm simplejs_vm_t;
+
+typedef struct simplejs_vm_executable simplejs_vm_executable_t, *psimplejs_vm_executable_t;
 
 simplejs_status_t SIMPLEJS_API simplejs_create_vm_memory(size_t size, simplejs_vm_memory_t **out);
 void SIMPLEJS_API simplejs_destroy_vm_memory(simplejs_vm_memory_t *vm_memory);
 bool SIMPLEJS_API simplejs_vm_memory_find_alloc_start(simplejs_vm_memory_t *vm_memory, pvoid address, void **out, size_t *out_size);
 pvoid SIMPLEJS_API simplejs_vm_memory_alloc(simplejs_vm_memory_t *vm_memory, size_t size_in_bytes);
 void SIMPLEJS_API simplejs_vm_memory_free(simplejs_vm_memory_t *vm_memory, void *ptr);
+
+void SIMPLEJS_API simplejs_vm_executable_get_pointer(
+    simplejs_vm_executable_t *vm_executable, void **out_executable, size_t *out_executable_size);
+psimplejs_vm_executable_t SIMPLEJS_API simplejs_vm_upload_executable(
+    simplejs_vm_memory_t *vm_memory, simplejs_linemap_ctx_t *linemap_ctx, void *executable, size_t executable_size);
 
 simplejs_status_t SIMPLEJS_API simplejs_create_vm(simplejs_vm_t **out);
 void SIMPLEJS_API simplejs_reset_vm(simplejs_vm_t *vm);
