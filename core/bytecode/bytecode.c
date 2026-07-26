@@ -111,22 +111,24 @@ void simplejs_bytecode_header_encode(uint8_t *buffer, simplejs_bytecode_header_t
 
 void simplejs_bytecode_debug_info_decode(uint8_t *buffer, simplejs_bytecode_debug_info_t *debug_info)
 {
-    simplejs_buffer_to_struct_field(debug_info, &debug_info->code_offset.start, uint32_t, buffer);
-    simplejs_buffer_to_struct_field(debug_info, &debug_info->code_offset.end, uint32_t, buffer);
-
-    simplejs_buffer_to_struct_field(debug_info, &debug_info->source_offset.start, uint32_t, buffer);
-    simplejs_buffer_to_struct_field(debug_info, &debug_info->source_offset.end, uint32_t, buffer);
-
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->flags, uint32_t, buffer);
     simplejs_buffer_to_struct_field(debug_info, &debug_info->children_debug_count, uint32_t, buffer);
+
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->code_offset.start, uint64_t, buffer);
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->code_offset.end, uint64_t, buffer);
+
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->source_offset.start, uint64_t, buffer);
+    simplejs_buffer_to_struct_field(debug_info, &debug_info->source_offset.end, uint64_t, buffer);
 }
 
 void simplejs_bytecode_debug_info_encode(uint8_t *buffer, simplejs_bytecode_debug_info_t *debug_info)
 {
-    simplejs_struct_field_to_buffer(debug_info, &debug_info->code_offset.start, uint32_t, buffer);
-    simplejs_struct_field_to_buffer(debug_info, &debug_info->code_offset.end, uint32_t, buffer);
-
-    simplejs_struct_field_to_buffer(debug_info, &debug_info->source_offset.start, uint32_t, buffer);
-    simplejs_struct_field_to_buffer(debug_info, &debug_info->source_offset.end, uint32_t, buffer);
-
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->flags, uint32_t, buffer);
     simplejs_struct_field_to_buffer(debug_info, &debug_info->children_debug_count, uint32_t, buffer);
+
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->code_offset.start, uint64_t, buffer);
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->code_offset.end, uint64_t, buffer);
+
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->source_offset.start, uint64_t, buffer);
+    simplejs_struct_field_to_buffer(debug_info, &debug_info->source_offset.end, uint64_t, buffer);
 }
