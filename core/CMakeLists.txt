@@ -3,8 +3,9 @@ set(SIMPLEJS_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 set(SIMPLEJS_INCLUDE_PATH "${SIMPLEJS_PATH}/inc")
 
 list(APPEND SIMPLEJS_SOURCE
-    ${SIMPLEJS_PATH}/diagnostic/cursor.c
     ${SIMPLEJS_PATH}/diagnostic/message.c
+
+    ${SIMPLEJS_PATH}/lib/char_cache_fetch.c
 
     ${SIMPLEJS_PATH}/lib/bitmap.c
 
@@ -34,6 +35,7 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/number/utils.c
     ${SIMPLEJS_PATH}/number/number.c
 
+    ${SIMPLEJS_PATH}/tokenizer/linemap.c
     ${SIMPLEJS_PATH}/tokenizer/tokenizer.c
 
     ${SIMPLEJS_PATH}/parser/parser.c
@@ -46,11 +48,13 @@ list(APPEND SIMPLEJS_SOURCE
 
     ${SIMPLEJS_PATH}/variable/variable.c
 
+    ${SIMPLEJS_PATH}/bytecode/vm-executable.c
     ${SIMPLEJS_PATH}/bytecode/vm-memory.c
     ${SIMPLEJS_PATH}/bytecode/vm.c
     ${SIMPLEJS_PATH}/bytecode/reverse-vm.c
     ${SIMPLEJS_PATH}/bytecode/compiler.c
     ${SIMPLEJS_PATH}/bytecode/bytecode.c
+    ${SIMPLEJS_PATH}/bytecode/bytecode-debug.c
 
     ${SIMPLEJS_PATH}/mm/gc.c
 
