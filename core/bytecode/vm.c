@@ -71,6 +71,7 @@ void SIMPLEJS_API simplejs_reset_vm(simplejs_vm_t *vm)
     simplejs_variable_dereference(&vm->state.global_variable);
 
     memclr(&vm->state, sizeof(vm->state));
+    memclr(&vm->crash_hint, sizeof(vm->crash_hint));
 }
 
 void SIMPLEJS_API simplejs_destroy_vm(simplejs_vm_t *vm)
@@ -505,11 +506,25 @@ simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simpl
 
     if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
     {
+        memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+        vm->crash_hint.is_valid_hint = true;
+        vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+        vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+
         status = SIMPLEJS_STATUS_PROGRAM_CRASHED;
         goto result;
     }
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(variable_object, property, output), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(variable_object, property, output), default_result, status);
+
+default_result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+        vm->crash_hint.is_valid_hint = true;
+        vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+        vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
+    }
 
 result:
     return status;
@@ -528,11 +543,25 @@ simplejs_status_t simplejs_bytecode_opcode_set_var_prop(simplejs_vm_t *vm, simpl
 
     if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
     {
+        memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+        vm->crash_hint.is_valid_hint = true;
+        vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+        vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+
         status = SIMPLEJS_STATUS_PROGRAM_CRASHED;
         goto result;
     }
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_set_property_value(variable_object, property, input), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_set_property_value(variable_object, property, input), default_result, status);
+
+default_result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+        vm->crash_hint.is_valid_hint = true;
+        vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+        vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
+    }
 
 result:
     return status;
@@ -856,7 +885,33 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
     return status;
 }
 
-#define simplejs_bytecode_opcode_unary_var(low_name, upper_name)                                                                 \
+static simplejs_status_t var_fail_default(
+    simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary)
+{
+    memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+    vm->crash_hint.is_valid_hint = true;
+    vm->crash_hint.required_flags = is_binary ? SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG : SIMPLEJS_BYTECODE_DEBUG_INFO_UNARY_OP_FLAG;
+    vm->crash_hint.children_flags = (!is_binary || id > 0) ? SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG : SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+
+    simplejs_printf("v_%c->type is not number (%u)\n", 'a' + id, variable->type);
+    return SIMPLEJS_STATUS_PROGRAM_CRASHED;
+}
+
+static simplejs_status_t var_fail_logical_not(
+    simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary)
+{
+    simplejs_variable_t tmp_out = {.type = SIMPLEJS_VARIABLE_TYPE_NUMBER};
+    simplejs_number_t *tmp_num = &tmp_out.value.number;
+
+    tmp_num->type = SIMPLEJS_NUMBER_TYPE_BOOLEAN;
+    tmp_num->value.boolean = !variable->value.object;
+
+    simplejs_variable_assign(variable, &tmp_out);
+
+    return SIMPLEJS_STATUS_SUCCESS;
+}
+
+#define simplejs_bytecode_opcode_unary_var(low_name, upper_name, fail_call)                                                      \
     simplejs_status_t simplejs_bytecode_opcode_##low_name##_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction) \
     {                                                                                                                            \
         simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;                                                                      \
@@ -864,8 +919,7 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
                                                                                                                                  \
         if (v_a->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                          \
         {                                                                                                                        \
-            simplejs_printf("v_a->type is not number (%u)\n", v_a->type);                                                        \
-            status = SIMPLEJS_STATUS_PROGRAM_CRASHED;                                                                            \
+            status = fail_call(vm, instruction, v_a, 0, false);                                                                  \
             goto result;                                                                                                         \
         }                                                                                                                        \
                                                                                                                                  \
@@ -878,7 +932,7 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
         return status;                                                                                                           \
     }
 
-#define simplejs_bytecode_opcode_binary_var(low_name, upper_name)                                                                                  \
+#define simplejs_bytecode_opcode_binary_var(low_name, upper_name, fail_call)                                                                       \
     simplejs_status_t simplejs_bytecode_opcode_##low_name##_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)                   \
     {                                                                                                                                              \
         simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;                                                                                        \
@@ -888,15 +942,13 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
                                                                                                                                                    \
         if (v_a->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                                            \
         {                                                                                                                                          \
-            simplejs_printf("v_a->type is not number (%u)\n", v_a->type);                                                                          \
-            status = SIMPLEJS_STATUS_PROGRAM_CRASHED;                                                                                              \
+            status = fail_call(vm, instruction, v_a, 0, true);                                                                                     \
             goto result;                                                                                                                           \
         }                                                                                                                                          \
                                                                                                                                                    \
         if (v_b->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                                            \
         {                                                                                                                                          \
-            simplejs_printf("v_b->type is not number (%u)\n", v_b->type);                                                                          \
-            status = SIMPLEJS_STATUS_PROGRAM_CRASHED;                                                                                              \
+            status = fail_call(vm, instruction, v_a, 1, true);                                                                                     \
             goto result;                                                                                                                           \
         }                                                                                                                                          \
                                                                                                                                                    \
@@ -912,32 +964,33 @@ simplejs_status_t simplejs_bytecode_opcode_convert_boolean_var(simplejs_vm_t *vm
         return status;                                                                                                                             \
     }
 
-simplejs_bytecode_opcode_unary_var(inc, INC);
-simplejs_bytecode_opcode_unary_var(dec, DEC);
+simplejs_bytecode_opcode_unary_var(inc, INC, var_fail_default);
+simplejs_bytecode_opcode_unary_var(dec, DEC, var_fail_default);
 
-simplejs_bytecode_opcode_unary_var(not, NOT);
-simplejs_bytecode_opcode_unary_var(neg, NEG);
+simplejs_bytecode_opcode_unary_var(logical_not, LOGICAL_NOT, var_fail_logical_not);
+simplejs_bytecode_opcode_unary_var(bitwise_not, BITWISE_NOT, var_fail_default);
+simplejs_bytecode_opcode_unary_var(neg, NEG, var_fail_default);
 
-simplejs_bytecode_opcode_binary_var(equal, EQUAL);
-simplejs_bytecode_opcode_binary_var(not_equal, NOT_EQUAL);
-simplejs_bytecode_opcode_binary_var(greater, GREATER);
-simplejs_bytecode_opcode_binary_var(below, BELOW);
-simplejs_bytecode_opcode_binary_var(greater_equal, GREATER_EQUAL);
-simplejs_bytecode_opcode_binary_var(below_equal, BELOW_EQUAL);
+simplejs_bytecode_opcode_binary_var(equal, EQUAL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(not_equal, NOT_EQUAL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(greater, GREATER, var_fail_default);
+simplejs_bytecode_opcode_binary_var(below, BELOW, var_fail_default);
+simplejs_bytecode_opcode_binary_var(greater_equal, GREATER_EQUAL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(below_equal, BELOW_EQUAL, var_fail_default);
 
-simplejs_bytecode_opcode_binary_var(or, OR);
-simplejs_bytecode_opcode_binary_var(and, AND);
+simplejs_bytecode_opcode_binary_var(or, OR, var_fail_default);
+simplejs_bytecode_opcode_binary_var(and, AND, var_fail_default);
 
-simplejs_bytecode_opcode_binary_var(shl, SHL);
-simplejs_bytecode_opcode_binary_var(shr, SHR);
-simplejs_bytecode_opcode_binary_var(sal, SAL);
-simplejs_bytecode_opcode_binary_var(sar, SAR);
+simplejs_bytecode_opcode_binary_var(shl, SHL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(shr, SHR, var_fail_default);
+simplejs_bytecode_opcode_binary_var(sal, SAL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(sar, SAR, var_fail_default);
 
-simplejs_bytecode_opcode_binary_var(add, ADD);
-simplejs_bytecode_opcode_binary_var(sub, SUB);
-simplejs_bytecode_opcode_binary_var(mul, MUL);
-simplejs_bytecode_opcode_binary_var(div, DIV);
-simplejs_bytecode_opcode_binary_var(mod, MOD);
+simplejs_bytecode_opcode_binary_var(add, ADD, var_fail_default);
+simplejs_bytecode_opcode_binary_var(sub, SUB, var_fail_default);
+simplejs_bytecode_opcode_binary_var(mul, MUL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(div, DIV, var_fail_default);
+simplejs_bytecode_opcode_binary_var(mod, MOD, var_fail_default);
 
 simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS_BYTECODE_OPCODE_END] = {
     [SIMPLEJS_BYTECODE_OPCODE_MOV_VAR] = simplejs_bytecode_opcode_mov_var,
@@ -995,7 +1048,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_INC_VAR] = simplejs_bytecode_opcode_inc_var,
     [SIMPLEJS_BYTECODE_OPCODE_DEC_VAR] = simplejs_bytecode_opcode_dec_var,
 
-    [SIMPLEJS_BYTECODE_OPCODE_NOT_VAR] = simplejs_bytecode_opcode_not_var,
+    [SIMPLEJS_BYTECODE_OPCODE_LOGICAL_NOT_VAR] = simplejs_bytecode_opcode_logical_not_var,
+    [SIMPLEJS_BYTECODE_OPCODE_BITWISE_NOT_VAR] = simplejs_bytecode_opcode_bitwise_not_var,
     [SIMPLEJS_BYTECODE_OPCODE_NEG_VAR] = simplejs_bytecode_opcode_neg_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_EQUAL_VAR] = simplejs_bytecode_opcode_equal_var,
@@ -1078,6 +1132,56 @@ result:
         vm->state.instruction_pointer -= instruction_size;
         vm->state.status = status;
         vm->state.vm_stopped = true;
+
+        if (status != SIMPLEJS_STATUS_PROGRAM_EXITED)
+        {
+            void *stop_pointer = (void *)vm->state.instruction_pointer;
+
+            simplejs_vm_executable_t *vm_executable = NULL;
+            simplejs_vm_memory_find_alloc_start(vm->memory, stop_pointer, (void **)&vm_executable, NULL);
+
+            SIMPLEJS_ASSERT(vm_executable != NULL);
+
+            simplejs_linemap_ctx_t *linemap_ctx = vm_executable->linemap_ctx;
+
+            size_t bytecode_executable_size = vm_executable->executable_size;
+            void *bytecode_executable = (uint8_t *)vm_executable + vm_executable->header_size;
+
+            void *debug_info = simplejs_bytecode_find_debug_info(bytecode_executable, bytecode_executable_size, stop_pointer);
+            if (vm_executable->linemap_ctx &&
+                debug_info)
+            {
+                void *children_debug_info = NULL;
+                if (vm->crash_hint.is_valid_hint)
+                {
+                    children_debug_info = simplejs_bytecode_find_children_debug_info(
+                        bytecode_executable, bytecode_executable_size,
+                        debug_info, vm->crash_hint.required_flags, vm->crash_hint.children_flags);
+                }
+
+                if (children_debug_info)
+                    debug_info = children_debug_info;
+
+                simplejs_bytecode_debug_info_t bytecode_debug_info;
+                simplejs_bytecode_debug_info_decode(debug_info, &bytecode_debug_info);
+
+                char tempBuffer[4096] = {0};
+                snprintf(tempBuffer, sizeof(tempBuffer) - 1, "vm failed with '%s' status", simplejs_get_status_string(status));
+
+                simplejs_diagnostic_message_t diagnostic_message;
+                simplejs_init_diagnostic_message(&diagnostic_message);
+
+                diagnostic_message.linemap_ctx = linemap_ctx;
+
+                diagnostic_message.line_offset = bytecode_debug_info.source_offset;
+                diagnostic_message.token_offset = diagnostic_message.line_offset;
+
+                diagnostic_message.type = SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR;
+                diagnostic_message.message = tempBuffer;
+
+                simplejs_present_diagnostic_message(&diagnostic_message);
+            }
+        }
     }
 
     return status;

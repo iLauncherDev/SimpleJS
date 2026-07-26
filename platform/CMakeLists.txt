@@ -9,6 +9,9 @@ else()
 endif()
 
 list(APPEND SIMPLEJS_SOURCE
+    ${SIMPLEJS_PATH}/lib/platform/file-${SIMPLEJS_PLATFORM}.c
+    ${SIMPLEJS_PATH}/lib/file.c
+
     ${SIMPLEJS_PATH}/lib/platform/realpath-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/realpath.c
 
@@ -27,6 +30,9 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/lib/spinlock.c
 
     ${SIMPLEJS_PATH}/lib/stdout_buffer.c
+
+    ${SIMPLEJS_PATH}/lib/map_buffer.c
+    ${SIMPLEJS_PATH}/lib/map_buffer_file.c
 )
 
 add_library(${SIMPLEJS_LIB_NAME} SHARED ${SIMPLEJS_SOURCE})
