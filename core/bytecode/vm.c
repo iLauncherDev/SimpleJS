@@ -499,6 +499,7 @@ simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simpl
 
     simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
     simplejs_object_t *variable_object = variable->value.object;
+    uint16_t variable_object_value = variable->value.object_value;
 
     simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
 
@@ -515,7 +516,7 @@ simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simpl
         goto result;
     }
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(variable_object, property, output), default_result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(variable_object, variable_object_value, property, output), default_result, status);
 
 default_result:
     if (!SIMPLEJS_SUCCESS(status))
@@ -536,6 +537,7 @@ simplejs_status_t simplejs_bytecode_opcode_set_var_prop(simplejs_vm_t *vm, simpl
 
     simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
     simplejs_object_t *variable_object = variable->value.object;
+    uint16_t variable_object_value = variable->value.object_value;
 
     simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
 
@@ -552,7 +554,7 @@ simplejs_status_t simplejs_bytecode_opcode_set_var_prop(simplejs_vm_t *vm, simpl
         goto result;
     }
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_set_property_value(variable_object, property, input), default_result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_set_property_value(variable_object, variable_object_value, property, input), default_result, status);
 
 default_result:
     if (!SIMPLEJS_SUCCESS(status))

@@ -4,12 +4,7 @@ void simplejs_number_encode(uint8_t *buffer, simplejs_number_t *number)
 {
     *buffer++ = (number->type >> 0) & 0xFF;
     *buffer++ = (number->type >> 8) & 0xFF;
-    *buffer++ = (number->type >> 16) & 0xFF;
-    *buffer++ = (number->type >> 24) & 0xFF;
-    *buffer++ = 0x00;
-    *buffer++ = 0x00;
-    *buffer++ = 0x00;
-    *buffer++ = 0x00;
+    buffer += 6;
 
     *buffer++ = (number->value.generic >> 0) & 0xFF;
     *buffer++ = (number->value.generic >> 8) & 0xFF;
@@ -23,12 +18,9 @@ void simplejs_number_encode(uint8_t *buffer, simplejs_number_t *number)
 
 void simplejs_number_decode(simplejs_number_t *number, uint8_t *buffer)
 {
-    uint32_t b1 = *buffer++;
-    uint32_t b2 = *buffer++;
-    uint32_t b3 = *buffer++;
-    uint32_t b4 = *buffer++;
-
-    buffer += 4;
+    uint16_t b1 = *buffer++;
+    uint16_t b2 = *buffer++;
+    buffer += 6;
 
     uint64_t b9 = *buffer++;
     uint64_t b10 = *buffer++;
@@ -39,7 +31,7 @@ void simplejs_number_decode(simplejs_number_t *number, uint8_t *buffer)
     uint64_t b15 = *buffer++;
     uint64_t b16 = *buffer++;
 
-    number->type = (b1 << 0) | (b2 << 8) | (b3 << 16) | (b4 << 24);
+    number->type = (b1 << 0) | (b2 << 8);
 
     number->value.generic = (b9 << 0) | (b10 << 8) | (b11 << 16) | (b12 << 24) |
                             (b13 << 32) | (b14 << 40) | (b15 << 48) | (b16 << 56);

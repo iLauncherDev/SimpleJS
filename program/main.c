@@ -418,7 +418,7 @@ int main(int argc, char **argv)
     simplejs_variable_init_undefined(&return_variable);
 
     simplejs_variable_t global_variable;
-    simplejs_variable_init_object(&global_variable, global_object);
+    simplejs_variable_init_object(&global_variable, global_object, 0);
 
     simplejs_vm_set_global_variable(vm, &global_variable);
     simplejs_gc_add_object(global_object);
