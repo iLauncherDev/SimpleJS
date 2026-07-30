@@ -15,8 +15,8 @@ typedef enum simplejs_function_type
 
 struct simplejs_function
 {
-    uint32_t reserved;
-    uint32_t type;
+    uint16_t reserved;
+    uint16_t type;
     union
     {
         uintptr_t instruction_pointer;
