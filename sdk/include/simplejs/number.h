@@ -28,12 +28,10 @@ typedef enum
 
 #define SIMPLEJS_NUMBER_SIZE 16
 
-#pragma pack(push, 1)
-
 typedef struct simplejs_number
 {
-    uint32_t reserved;
-    uint32_t type;
+    uint16_t reserved;
+    uint16_t type;
     union
     {
         uint64_t generic;
@@ -52,8 +50,6 @@ typedef struct simplejs_number
         double f64;
     } value;
 } simplejs_number_t;
-
-#pragma pack(pop)
 
 static_assert(sizeof(simplejs_number_t) == SIMPLEJS_NUMBER_SIZE);
 
