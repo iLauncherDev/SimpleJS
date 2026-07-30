@@ -61,58 +61,98 @@ void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
 }
 
 // object proxy functions
-simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object)
+simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object, uint16_t object_value)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_release(object->proxy, object->pointer);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_release(object->proxy, context);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_lock_property_list(simplejs_object_t *object)
+simplejs_status_t SIMPLEJS_API simplejs_object_lock_property_list(simplejs_object_t *object, uint16_t object_value)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_lock_property_list(object->proxy, object->pointer);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_lock_property_list(object->proxy, context);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_unlock_property_list(simplejs_object_t *object)
+simplejs_status_t SIMPLEJS_API simplejs_object_unlock_property_list(simplejs_object_t *object, uint16_t object_value)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_unlock_property_list(object->proxy, object->pointer);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_unlock_property_list(object->proxy, context);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_query_property(simplejs_object_t *object, simplejs_proxy_property_query_t *out)
+simplejs_status_t SIMPLEJS_API simplejs_object_query_property(simplejs_object_t *object, uint16_t object_value, simplejs_proxy_property_query_t *out)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_query_property(object->proxy, object->pointer, out);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_query_property(object->proxy, context, out);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_get_property_value(simplejs_object_t *object, simplejs_variable_t *property, simplejs_variable_t *out)
+simplejs_status_t SIMPLEJS_API simplejs_object_get_property_value(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property, simplejs_variable_t *out)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_get_property_value(object->proxy, object->pointer, property, out);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_get_property_value(object->proxy, context, property, out);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_set_property_value(simplejs_object_t *object, simplejs_variable_t *property, simplejs_variable_t *in)
+simplejs_status_t SIMPLEJS_API simplejs_object_set_property_value(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property, simplejs_variable_t *in)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_set_property_value(object->proxy, object->pointer, property, in);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_set_property_value(object->proxy, context, property, in);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_delete_property(simplejs_object_t *object, simplejs_variable_t *property)
+simplejs_status_t SIMPLEJS_API simplejs_object_delete_property(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_delete_property(object->proxy, object->pointer, property);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_delete_property(object->proxy, context, property);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_get_string(simplejs_object_t *object, char **out)
+simplejs_status_t SIMPLEJS_API simplejs_object_get_string(simplejs_object_t *object, uint16_t object_value, char **out)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    return simplejs_proxy_get_string(object->proxy, object->pointer, out);
+    simplejs_proxy_context_t context = {
+        .pointer = object->pointer,
+        .value = object_value,
+    };
+
+    return simplejs_proxy_get_string(object->proxy, context, out);
 }
