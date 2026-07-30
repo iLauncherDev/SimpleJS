@@ -57,110 +57,110 @@ _simplejs_proxy_set_name_callback(delete_property);
 
 _simplejs_proxy_set_name_callback(get_string);
 
-simplejs_status_t simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer)
+simplejs_status_t simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_release, status, pointer);
+    simplejs_proxy_call_if_exists(proxy->f_release, status, context);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_lock_property_list(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer)
+simplejs_status_t simplejs_proxy_lock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_lock_property_list, status, pointer);
+    simplejs_proxy_call_if_exists(proxy->f_lock_property_list, status, context);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer)
+simplejs_status_t simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_unlock_property_list, status, pointer);
+    simplejs_proxy_call_if_exists(proxy->f_unlock_property_list, status, context);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, simplejs_proxy_property_query_t *out)
+simplejs_status_t simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_proxy_property_query_t *out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
     SIMPLEJS_ASSERT(out != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_query_property, status, pointer, out);
+    simplejs_proxy_call_if_exists(proxy->f_query_property, status, context, out);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, simplejs_variable_t *property, simplejs_variable_t *out)
+simplejs_status_t simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
     SIMPLEJS_ASSERT(property != NULL);
     SIMPLEJS_ASSERT(out != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_get_property_value, status, pointer, property, out);
+    simplejs_proxy_call_if_exists(proxy->f_get_property_value, status, context, property, out);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, simplejs_variable_t *property, simplejs_variable_t *in)
+simplejs_status_t simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
     SIMPLEJS_ASSERT(property != NULL);
     SIMPLEJS_ASSERT(in != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_set_property_value, status, pointer, property, in);
+    simplejs_proxy_call_if_exists(proxy->f_set_property_value, status, context, property, in);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, simplejs_variable_t *property)
+simplejs_status_t simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
     SIMPLEJS_ASSERT(property != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_delete_property, status, pointer, property);
+    simplejs_proxy_call_if_exists(proxy->f_delete_property, status, context, property);
 
     return status;
 }
 
-simplejs_status_t simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_raw_object_t *pointer, char **out)
+simplejs_status_t simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, char **out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
-    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
 
     SIMPLEJS_ASSERT(out != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_get_string, status, pointer, out);
+    simplejs_proxy_call_if_exists(proxy->f_get_string, status, context, out);
 
     return status;
 }

@@ -13,6 +13,18 @@ uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable)
     return (number_value & is_number_mask) + (object_value & ~is_number_mask);
 }
 
+bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, double *out)
+{
+    SIMPLEJS_ASSERT(variable != NULL);
+    SIMPLEJS_ASSERT(out != NULL);
+
+    if (variable->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)
+        return false;
+
+    *out = simplejs_number_get_float64(&variable->value.number);
+    return true;
+}
+
 void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, char **out)
 {
     SIMPLEJS_ASSERT(variable != NULL);
@@ -54,7 +66,7 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
     case SIMPLEJS_VARIABLE_TYPE_OBJECT:
     {
         char *object_type = "[Unknown Object]";
-        simplejs_object_get_string(variable->value.object, &object_type);
+        simplejs_object_get_string(variable->value.object, variable->value.object_value, &object_type);
 
         *out = object_type;
         break;
@@ -179,8 +191,9 @@ void SIMPLEJS_API simplejs_variable_init_number(simplejs_variable_t *variable, s
     variable->type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
 }
 
-void SIMPLEJS_API simplejs_variable_init_object(simplejs_variable_t *variable, void *object)
+void SIMPLEJS_API simplejs_variable_init_object(simplejs_variable_t *variable, void *object, uint16_t object_value)
 {
+    variable->value.object_value = object_value;
     variable->value.object = object;
     variable->type = SIMPLEJS_VARIABLE_TYPE_OBJECT;
 }

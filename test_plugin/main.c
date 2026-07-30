@@ -35,7 +35,7 @@ simplejs_status_t SIMPLEJS_PLUGIN_API plugin_main(simplejs_object_t *global_obje
     property_variable.type = SIMPLEJS_VARIABLE_TYPE_FAST_STRING;
     property_variable.value.fast_string = "test_plugin_function";
 
-    status = simplejs_object_set_property_value(global_object, &property_variable, &function_variable);
+    status = simplejs_object_set_property_value(global_object, 0, &property_variable, &function_variable);
 
     simplejs_printf("hello from plugin_main!\n");
 

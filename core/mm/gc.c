@@ -40,7 +40,11 @@ void SIMPLEJS_API simplejs_gc_event()
 
             if (reference_count < 1)
             {
-                status = simplejs_proxy_release(object->proxy, object->pointer);
+                simplejs_proxy_context_t context = {
+                    .pointer = object->pointer,
+                };
+
+                status = simplejs_proxy_release(object->proxy, context);
                 if (!SIMPLEJS_SUCCESS(status))
                 {
                     simplejs_printf("the memory maybe leaked!\n");
