@@ -2,25 +2,15 @@
 
 simplejs_gc_t simplejs_gc = {0};
 
-void simplejs_gc_lock_object_list()
-{
-    simplejs_spinlock_acquire(&simplejs_gc.object_list_lock, true);
-}
-
-void simplejs_gc_release_object_list()
-{
-    simplejs_spinlock_release(&simplejs_gc.object_list_lock);
-}
-
 void SIMPLEJS_API simplejs_gc_event()
 {
-    simplejs_gc_lock_object_list();
+    simplejs_safe_list_acquire_lock(&simplejs_gc.object_list, true);
 
     uintptr_t iterations = 1;
 
     while (iterations--)
     {
-        simplejs_list_entry_t *end_object = &simplejs_gc.object_list;
+        simplejs_list_entry_t *end_object = &simplejs_gc.object_list.list;
         simplejs_list_entry_t *current_object = end_object->next;
 
         while (current_object != end_object)
@@ -64,26 +54,21 @@ void SIMPLEJS_API simplejs_gc_event()
         }
     }
 
-    simplejs_gc_release_object_list();
+    simplejs_safe_list_release_lock(&simplejs_gc.object_list);
 }
 
 void SIMPLEJS_API simplejs_gc_add_object(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    simplejs_gc_lock_object_list();
-
-    simplejs_insert_tail_list(&simplejs_gc.object_list, &object->gc_list_entry);
-
-    simplejs_gc_release_object_list();
+    simplejs_add_entry_to_safe_list(&simplejs_gc.object_list, &object->gc_list_entry, false);
 }
 
 simplejs_status_t simplejs_init_gc()
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
-    simplejs_init_spinlock(&simplejs_gc.object_list_lock);
-    simplejs_init_list_entry(&simplejs_gc.object_list, &simplejs_gc);
+    simplejs_init_safe_list(&simplejs_gc.object_list, &simplejs_gc);
 
 result:
     return status;

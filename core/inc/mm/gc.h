@@ -4,8 +4,7 @@
 
 typedef struct simplejs_gc
 {
-    simplejs_spinlock_t object_list_lock;
-    simplejs_list_entry_t object_list;
+    simplejs_safe_list_t object_list;
 } simplejs_gc_t;
 
 simplejs_status_t simplejs_init_gc();

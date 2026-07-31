@@ -10,6 +10,7 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/lib/bitmap.c
 
     ${SIMPLEJS_PATH}/lib/list.c
+    ${SIMPLEJS_PATH}/lib/safe_list.c
 
     ${SIMPLEJS_PATH}/lib/utf8.c
 

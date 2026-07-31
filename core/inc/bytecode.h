@@ -122,6 +122,8 @@ typedef struct simplejs_bytecode_header
 #define SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG (1 << 3)
 #define SIMPLEJS_BYTECODE_DEBUG_INFO_DIAGNOSTIC_FLAG (1 << 4)
 
+#define SIMPLEJS_BYTECODE_DEBUG_INFO_HINT_RIGHT_FLAG (1 << 5)
+
 typedef struct simplejs_bytecode_debug_info
 {
     uint32_t flags;
