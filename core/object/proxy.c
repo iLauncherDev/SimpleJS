@@ -57,7 +57,7 @@ _simplejs_proxy_set_name_callback(delete_property);
 
 _simplejs_proxy_set_name_callback(get_string);
 
-simplejs_status_t simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -69,7 +69,7 @@ simplejs_status_t simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy
     return status;
 }
 
-simplejs_status_t simplejs_proxy_lock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_lock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -81,7 +81,7 @@ simplejs_status_t simplejs_proxy_lock_property_list(simplejs_proxy_t *proxy, sim
     return status;
 }
 
-simplejs_status_t simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -93,7 +93,7 @@ simplejs_status_t simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, s
     return status;
 }
 
-simplejs_status_t simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_proxy_property_query_t *out)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_proxy_property_query_t *out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -107,7 +107,7 @@ simplejs_status_t simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplej
     return status;
 }
 
-simplejs_status_t simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -122,7 +122,7 @@ simplejs_status_t simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, sim
     return status;
 }
 
-simplejs_status_t simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -137,7 +137,7 @@ simplejs_status_t simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, sim
     return status;
 }
 
-simplejs_status_t simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -151,7 +151,7 @@ simplejs_status_t simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simple
     return status;
 }
 
-simplejs_status_t simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, char **out)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, char **out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
