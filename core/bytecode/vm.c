@@ -1153,16 +1153,35 @@ result:
             if (vm_executable->linemap_ctx &&
                 debug_info)
             {
-                void *children_debug_info = NULL;
+                void *children_debug_info = NULL, *final_children_debug_info = NULL;
                 if (vm->crash_hint.is_valid_hint)
                 {
                     children_debug_info = simplejs_bytecode_find_children_debug_info(
                         bytecode_executable, bytecode_executable_size,
                         debug_info, vm->crash_hint.required_flags, vm->crash_hint.children_flags);
+
+                    while (children_debug_info)
+                    {
+                        simplejs_bytecode_debug_info_t bytecode_debug_info;
+                        simplejs_bytecode_debug_info_decode(children_debug_info, &bytecode_debug_info);
+
+                        uint32_t children_flags = 0;
+
+                        if (bytecode_debug_info.flags & SIMPLEJS_BYTECODE_DEBUG_INFO_HINT_RIGHT_FLAG)
+                            children_flags |= SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
+                        else
+                            children_flags |= SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+
+                        final_children_debug_info = children_debug_info;
+
+                        children_debug_info = simplejs_bytecode_find_children_debug_info(
+                            bytecode_executable, bytecode_executable_size,
+                            children_debug_info, 0, children_flags);
+                    }
                 }
 
-                if (children_debug_info)
-                    debug_info = children_debug_info;
+                if (final_children_debug_info)
+                    debug_info = final_children_debug_info;
 
                 simplejs_bytecode_debug_info_t bytecode_debug_info;
                 simplejs_bytecode_debug_info_decode(debug_info, &bytecode_debug_info);
