@@ -407,6 +407,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         simplejs_compiler_debug_t *compiler_debug;
         simplejs_alloc_and_insert_temp(compiler_debug, side, compiler_debug_list, result, status);
         compiler_debug->flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+        compiler_debug->flags |= SIMPLEJS_BYTECODE_DEBUG_INFO_HINT_RIGHT_FLAG;
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
