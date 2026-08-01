@@ -23,6 +23,10 @@ void simplejs_present_diagnostic_message(simplejs_diagnostic_message_t *message)
     SIMPLEJS_ASSERT(message->type != NULL);
     SIMPLEJS_ASSERT(message->linemap_ctx != NULL);
 
+    simplejs_char_cache_fetch_t *cache_fetch = simplejs_get_linemap_cache_fetch(message->linemap_ctx);
+    simplejs_linemap_position_t temp_cursor, line_cursor;
+    size_t start_error_line, end_error_line, start_line, end_line;
+
     char *indicator_color = message->indicator_color;
     if (!indicator_color)
     {
@@ -38,13 +42,9 @@ void simplejs_present_diagnostic_message(simplejs_diagnostic_message_t *message)
         }
 
         indicator_color = SIMPLEJS_ANSI_COMMAND("[0");
-
-    found_indicator_color:
     }
+found_indicator_color:
 
-    simplejs_char_cache_fetch_t *cache_fetch = simplejs_get_linemap_cache_fetch(message->linemap_ctx);
-
-    simplejs_linemap_position_t temp_cursor;
     simplejs_get_linemap_by_offset(message->linemap_ctx, message->token_offset.start, &temp_cursor);
 
     printf("%s:%lu:%lu: %s%s:%s %s\n",
@@ -52,17 +52,19 @@ void simplejs_present_diagnostic_message(simplejs_diagnostic_message_t *message)
            indicator_color, message->type, SIMPLEJS_ANSI_COMMAND("[0"),
            message->message);
 
-    simplejs_linemap_position_t line_cursor;
+    simplejs_get_linemap_by_offset(message->linemap_ctx, message->token_offset.start, &line_cursor);
+    start_error_line = line_cursor.line;
 
-    size_t error_line = temp_cursor.line;
+    simplejs_get_linemap_by_offset(message->linemap_ctx, message->token_offset.end, &line_cursor);
+    end_error_line = line_cursor.line;
 
     simplejs_get_linemap_by_offset(message->linemap_ctx, message->line_offset.start, &line_cursor);
-    size_t line_start = line_cursor.line;
+    start_line = line_cursor.line;
 
     simplejs_get_linemap_by_offset(message->linemap_ctx, message->line_offset.end, &line_cursor);
-    size_t line_end = line_cursor.line;
+    end_line = line_cursor.line;
 
-    for (size_t current_line = line_start; current_line <= line_end; current_line++)
+    for (size_t current_line = start_line; current_line <= end_line; current_line++)
     {
         simplejs_linemap_t *linemap = simplejs_get_linemap_by_line(message->linemap_ctx, current_line);
         if (!linemap)
@@ -75,27 +77,34 @@ void simplejs_present_diagnostic_message(simplejs_diagnostic_message_t *message)
 
         printf(temp_prefix_string);
 
+        bool printed_indicator = false;
+
         for (uint64_t current_offset = linemap->offset.start; current_offset < linemap->offset.end; current_offset++)
         {
             char chr0;
             simplejs_fetch_char_from_cache(cache_fetch, current_offset, &chr0);
 
-            if (current_offset == message->token_offset.start)
+            if (current_offset == message->token_offset.start ||
+                (current_offset > message->token_offset.start && !printed_indicator))
             {
+                printed_indicator = true;
+
                 printf(indicator_color);
             }
 
             printf("%c", chr0);
 
-            if ((current_offset + 1) == message->token_offset.end ||
-                (current_offset + 1) >= linemap->offset.end)
+            if (printed_indicator &&
+                ((current_offset + 1) == message->token_offset.end ||
+                 (current_offset + 1) >= linemap->offset.end))
             {
                 printf(SIMPLEJS_ANSI_COMMAND("[0"));
             }
         }
         printf("\n");
 
-        if (current_line == error_line)
+        if (current_line >= start_error_line &&
+            current_line <= end_error_line)
         {
             for (size_t i = 0; temp_prefix_string[i] != '\0'; i++)
                 printf(" ");
