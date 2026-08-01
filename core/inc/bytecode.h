@@ -171,7 +171,8 @@ typedef enum
     SIMPLEJS_BYTECODE_VARIABLE_ARGUMENT,
 } simplejs_bytecode_variable_t;
 
-pvoid simplejs_bytecode_find_debug_info(void *executable, size_t executable_size, void *stop_pointer);
+pvoid simplejs_bytecode_find_debug_info_by_stop_pointer(void *executable, size_t executable_size, void *stop_pointer);
+pvoid simplejs_bytecode_find_debug_info_by_source_offset(void *executable, size_t executable_size, simplejs_linemap_offset_t source_offset, uint32_t required_flags);
 pvoid simplejs_bytecode_find_children_debug_info(
     void *executable, size_t executable_size,
     pvoid debug_info, uint32_t required_debug_flags, uint32_t children_debug_flags);
