@@ -230,7 +230,14 @@ simplejs_bytecode_opcode_t op_ast_opcode_map[SIMPLEJS_AST_NODE_TYPE_END] = {
 #define simplejs_alloc_and_insert_temp(compiler_debug, side, compiler_debug_list, label, status) \
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_debug(&compiler_debug), result, status);             \
     compiler_debug->diagnostic_token = side->diagnostic_token;                                   \
+    compiler_debug->diagnostic_offset = side->diagnostic_offset;                                 \
     simplejs_insert_tail_list(&compiler_debug_list, &compiler_debug->_temp_list_entry)
+
+#define simplejs_alloc_and_insert_debug(compiler_debug, side, parent_debug, label, status) \
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_debug(&compiler_debug), result, status);             \
+    compiler_debug->diagnostic_token = side->diagnostic_token;                                   \
+    compiler_debug->diagnostic_offset = side->diagnostic_offset;                                 \
+    simplejs_insert_debug(compiler_ctx, parent_debug, compiler_debug)
 
 simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_debug_t *parent_debug, simplejs_compiler_reg_info_t reg_info, simplejs_ast_node_t *side)
 {
@@ -300,26 +307,25 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         simplejs_list_entry_t *end_argument = &side->children_list_entry;
         simplejs_list_entry_t *current_argument = reference->list_entry.next;
 
-        simplejs_compiler_debug_t *compiler_debug;
-
         simplejs_compiler_reg_info_t tmp_reg_info;
 
+        simplejs_compiler_debug_t *compiler_debug;
         simplejs_alloc_and_insert_temp(compiler_debug, side, compiler_debug_list, result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_CTX;
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_ARG_OFFSET;
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_ALLOC_ARGS;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
@@ -331,7 +337,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
             simplejs_ast_node_t *argument = simplejs_get_list_entry_structure(current_argument);
 
             simplejs_compiler_debug_t *argument_compiler_debug;
-            simplejs_alloc_and_insert_temp(argument_compiler_debug, argument, compiler_debug_list, result, status);
+            simplejs_alloc_and_insert_debug(argument_compiler_debug, argument, compiler_debug, result, status);
 
             memclr(&tmp_reg_info, sizeof(tmp_reg_info));
             tmp_reg_info.is_write = false;
@@ -356,7 +362,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         if (reference->type != SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
-            simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_VAR;
             instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_THIS;
@@ -374,20 +380,20 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, reference), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        instruct_tmp.compiler_debug = compiler_debug;
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_CALL;
         instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_FREE_ARGS;
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RESTORE_CTX;
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
@@ -626,7 +632,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
         instruct_tmp.type = SIMPLEJS_COMPILER_INSTRUCTION_TYPE_LABEL_GOTO;
         instruct_tmp.symbol.label_id = short_label_id;
@@ -634,7 +640,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_CONVERT_BOOLEAN_VAR;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
@@ -673,7 +679,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         if (side->flags)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
-            simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_MOV_VAR;
             instruct_tmp.instruction.reg_1 = reg_info.reg_a;
@@ -700,7 +706,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         if (!side->flags)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
-            simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_MOV_VAR;
             instruct_tmp.instruction.reg_1 = reg_info.reg_a;
@@ -798,7 +804,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         if (reg_info.is_write)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
-            simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR;
             instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PARENT;
@@ -807,7 +813,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         }
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR;
         instruct_tmp.instruction.reg_1 = reg_op_a;
@@ -824,7 +830,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR;
         instruct_tmp.instruction.reg_1 = reg_op_a;
@@ -878,7 +884,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         simplejs_compiler_reg_info_t tmp_reg_info;
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
@@ -896,7 +902,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
@@ -1960,16 +1966,15 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
             if (compiler_instruction->compiler_debug)
             {
                 simplejs_compiler_debug_t *compiler_debug = compiler_instruction->compiler_debug;
-                simplejs_token_t *diagnostic_token = compiler_debug->diagnostic_token;
 
                 compiler_debug->code_offset.start = current_code_offset;
                 compiler_debug->code_offset.end = current_code_offset + instruction_size;
 
-                if (diagnostic_token)
+                if (compiler_debug->diagnostic_token)
                 {
                     compiler_debug->flags |= SIMPLEJS_BYTECODE_DEBUG_INFO_DIAGNOSTIC_FLAG;
 
-                    compiler_debug->source_offset = diagnostic_token->offset;
+                    compiler_debug->source_offset = compiler_debug->diagnostic_offset;
                 }
                 else
                 {
