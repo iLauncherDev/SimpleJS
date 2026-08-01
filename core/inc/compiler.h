@@ -13,6 +13,7 @@ typedef enum simplejs_compiler_instruction_type
 typedef struct simplejs_compiler_debug
 {
     simplejs_token_t *diagnostic_token;
+    simplejs_linemap_offset_t diagnostic_offset;
 
     uint32_t _debug_offset;
 
