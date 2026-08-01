@@ -258,13 +258,28 @@ static simplejs_status_t simplejs_make_unary_node(simplejs_token_t *operator, si
     simplejs_ast_node_t *unary_ast = NULL;
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
+    SIMPLEJS_ASSERT(left != NULL);
+
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &unary_ast), result, status);
+
+    if (left->diagnostic_token)
+    {
+        if (assign_first)
+        {
+            unary_ast->diagnostic_offset.start = left->diagnostic_offset.start;
+            unary_ast->diagnostic_offset.end = operator->offset.end;
+        }
+        else
+        {
+            unary_ast->diagnostic_offset.start = operator->offset.start;
+            unary_ast->diagnostic_offset.end = left->diagnostic_offset.end;
+        }
+    }
+
     unary_ast->context = operator->string;
     unary_ast->diagnostic_token = operator;
 
     unary_ast->flags = assign_first;
-
-    SIMPLEJS_ASSERT(left != NULL);
 
     simplejs_insert_children_ast_to_parent(unary_ast, left);
 
@@ -279,12 +294,26 @@ static simplejs_status_t simplejs_make_binary_node(simplejs_token_t *operator, s
     simplejs_ast_node_t *binary_ast = NULL;
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &binary_ast), result, status);
-    binary_ast->context = operator->string;
-    binary_ast->diagnostic_token = operator;
-
     SIMPLEJS_ASSERT(left != NULL);
     SIMPLEJS_ASSERT(right != NULL);
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &binary_ast), result, status);
+
+    if (left->diagnostic_token && right->diagnostic_token)
+    {
+        binary_ast->diagnostic_offset.start = left->diagnostic_offset.start;
+        binary_ast->diagnostic_offset.end = right->diagnostic_offset.end;
+    }
+    else
+    {
+        if (left->diagnostic_token)
+            binary_ast->diagnostic_offset = left->diagnostic_offset;
+        else if (right->diagnostic_token)
+            binary_ast->diagnostic_offset = right->diagnostic_offset;
+    }
+
+    binary_ast->context = operator->string;
+    binary_ast->diagnostic_token = operator;
 
     simplejs_insert_children_ast_to_parent(binary_ast, left);
     simplejs_insert_children_ast_to_parent(binary_ast, right);
@@ -408,6 +437,15 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
 
         identifier_ast->context = token->string;
         identifier_ast->diagnostic_token = token;
+        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
+    }
+    else if (simplejs_check_token_expr_keyword(token, "globalThis"))
+    {
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE, &identifier_ast), result, status);
+
+        identifier_ast->context = token->string;
+        identifier_ast->diagnostic_token = token;
+        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
     }
     else if (is_local)
     {
@@ -429,17 +467,18 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
         }
 
         identifier_ast->diagnostic_token = token;
+        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
     }
     else
     {
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE, &global_ast), result, status);
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE, &property_ast), result, status);
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_make_binary_node(token, SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS, &identifier_ast, global_ast, property_ast), result, status);
 
         property_ast->context = token->string;
         property_ast->diagnostic_token = token;
+        property_ast->diagnostic_offset = property_ast->diagnostic_token->offset;
 
-        identifier_ast->diagnostic_token = property_ast->diagnostic_token;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_make_binary_node(token, SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS, &identifier_ast, global_ast, property_ast), result, status);
     }
 
     *out = identifier_ast;
@@ -469,6 +508,7 @@ simplejs_status_t simplejs_alloc_string_node(simplejs_parser_ctx_t *parser_ctx, 
 
     string_ast->context = token->string;
     string_ast->diagnostic_token = token;
+    string_ast->diagnostic_offset = string_ast->diagnostic_token->offset;
 
     *out = string_ast;
 
@@ -485,6 +525,7 @@ simplejs_status_t simplejs_alloc_number_node(simplejs_parser_ctx_t *parser_ctx, 
 
     number_ast->context = &token->number;
     number_ast->diagnostic_token = token;
+    number_ast->diagnostic_offset = number_ast->diagnostic_token->offset;
 
     *out = number_ast;
 
@@ -626,7 +667,8 @@ static simplejs_status_t simplejs_nud(
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
-    if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+    if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER ||
+        simplejs_check_token_expr_keyword(token, "globalThis"))
     {
         status = simplejs_alloc_identifier_node(parser_ctx, out, token, false);
         goto result;
@@ -641,17 +683,6 @@ static simplejs_status_t simplejs_nud(
     if (token->type == SIMPLEJS_TOKEN_TYPE_STRING)
     {
         status = simplejs_alloc_string_node(parser_ctx, out, token);
-        goto result;
-    }
-
-    if (simplejs_check_token_expr_keyword(token, "globalThis"))
-    {
-        status = simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE, out);
-        if (SIMPLEJS_SUCCESS(status))
-        {
-            (*out)->diagnostic_token = token;
-        }
-
         goto result;
     }
 
@@ -873,16 +904,17 @@ simplejs_status_t simplejs_process_operator(
                 ")",
             };
 
-            status = simplejs_make_unary_node(operator_token, node_type, false, left, *left);
+            status = simplejs_make_unary_node(operator_token, node_type, true, left, *left);
             if (!SIMPLEJS_SUCCESS(status))
                 goto result;
 
+            simplejs_ast_node_t *function_call_ast = *left;
+            simplejs_token_t *function_operator_token = NULL;
+
             while (true)
             {
-                simplejs_token_t *operator;
-
-                operator= simplejs_token_next(parser_ctx, start_token);
-                if (simplejs_check_token_operator(operator, ")"))
+                function_operator_token = simplejs_token_next(parser_ctx, start_token);
+                if (simplejs_check_token_operator(function_operator_token, ")"))
                     break;
                 simplejs_token_prev(parser_ctx, start_token);
 
@@ -892,19 +924,19 @@ simplejs_status_t simplejs_process_operator(
                 if (!SIMPLEJS_SUCCESS(status))
                     goto result;
 
-                simplejs_insert_children_ast_to_parent(*left, arg);
+                simplejs_insert_children_ast_to_parent(function_call_ast, arg);
 
-                operator= simplejs_token_next(parser_ctx, start_token);
-                if (simplejs_check_token_operator(operator, ")"))
+                function_operator_token = simplejs_token_next(parser_ctx, start_token);
+                if (simplejs_check_token_operator(function_operator_token, ")"))
                     break;
 
-                if (!simplejs_check_token_operator(operator, ","))
+                if (!simplejs_check_token_operator(function_operator_token, ","))
                 {
                     char message[256] = {0};
-                    snprintf(message, sizeof(message) - 1, "invalid call argument separator! ('%s')", operator->string->buffer);
+                    snprintf(message, sizeof(message) - 1, "invalid call argument separator! ('%s')", function_operator_token->string->buffer);
 
                     simplejs_present_parser_diagnostic(
-                        parser_ctx, parser_ctx->current_ast_stack, operator,
+                        parser_ctx, parser_ctx->current_ast_stack, function_operator_token,
                         SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, message);
 
                     status = SIMPLEJS_STATUS_INVALID_TOKEN;
@@ -912,6 +944,7 @@ simplejs_status_t simplejs_process_operator(
                 }
             }
 
+            function_call_ast->diagnostic_offset.end = function_operator_token->offset.end;
             break;
         }
 
@@ -1025,7 +1058,7 @@ simplejs_status_t simplejs_parse_expression(
         }
 
         int lbp, rbp;
-        simplejs_get_binding_power(operator_token, & lbp, &rbp);
+        simplejs_get_binding_power(operator_token, &lbp, &rbp);
 
         if (lbp < min_bp)
         {
