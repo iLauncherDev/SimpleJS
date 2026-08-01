@@ -800,6 +800,14 @@ simplejs_status_t simplejs_bytecode_opcode_call(simplejs_vm_t *vm, simplejs_byte
     status = call_handler(vm, instruction, function_header, function);
 
 result:
+    //if (!SIMPLEJS_SUCCESS(status))
+    //{
+    //    memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+    //    vm->crash_hint.is_valid_hint = true;
+    //    vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+    //    vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
+    //}
+
     return status;
 }
 
@@ -950,7 +958,7 @@ static simplejs_status_t var_fail_logical_not(
                                                                                                                                                    \
         if (v_b->type != SIMPLEJS_VARIABLE_TYPE_NUMBER)                                                                                            \
         {                                                                                                                                          \
-            status = fail_call(vm, instruction, v_a, 1, true);                                                                                     \
+            status = fail_call(vm, instruction, v_b, 1, true);                                                                                     \
             goto result;                                                                                                                           \
         }                                                                                                                                          \
                                                                                                                                                    \
@@ -1149,7 +1157,7 @@ result:
             size_t bytecode_executable_size = vm_executable->executable_size;
             void *bytecode_executable = (uint8_t *)vm_executable + vm_executable->header_size;
 
-            void *debug_info = simplejs_bytecode_find_debug_info(bytecode_executable, bytecode_executable_size, stop_pointer);
+            void *debug_info = simplejs_bytecode_find_debug_info_by_stop_pointer(bytecode_executable, bytecode_executable_size, stop_pointer);
             if (vm_executable->linemap_ctx &&
                 debug_info)
             {
