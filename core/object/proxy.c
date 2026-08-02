@@ -16,6 +16,8 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_proxy(simplejs_proxy_t **out)
 
     memclr(proxy, sizeof(*proxy));
 
+    *out = proxy;
+
 result:
     return status;
 }
