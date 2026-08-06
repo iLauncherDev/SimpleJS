@@ -234,9 +234,9 @@ simplejs_bytecode_opcode_t op_ast_opcode_map[SIMPLEJS_AST_NODE_TYPE_END] = {
     simplejs_insert_tail_list(&compiler_debug_list, &compiler_debug->_temp_list_entry)
 
 #define simplejs_alloc_and_insert_debug(compiler_debug, side, parent_debug, label, status) \
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_debug(&compiler_debug), result, status);             \
-    compiler_debug->diagnostic_token = side->diagnostic_token;                                   \
-    compiler_debug->diagnostic_offset = side->diagnostic_offset;                                 \
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_debug(&compiler_debug), result, status);       \
+    compiler_debug->diagnostic_token = side->diagnostic_token;                             \
+    compiler_debug->diagnostic_offset = side->diagnostic_offset;                           \
     simplejs_insert_debug(compiler_ctx, parent_debug, compiler_debug)
 
 simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_debug_t *parent_debug, simplejs_compiler_reg_info_t reg_info, simplejs_ast_node_t *side)
@@ -278,7 +278,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
-        tmp_reg_info.is_write = false;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
         tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
         tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
 
@@ -340,7 +340,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
             simplejs_alloc_and_insert_debug(argument_compiler_debug, argument, compiler_debug, result, status);
 
             memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-            tmp_reg_info.is_write = false;
+            tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
             tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ARGUMENT;
             tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ARGUMENT;
 
@@ -373,7 +373,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         tmp_reg_info.reg_parent = SIMPLEJS_BYTECODE_VARIABLE_THIS;
         tmp_reg_info.have_parent = true;
 
-        tmp_reg_info.is_write = false;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
         tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
         tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
 
@@ -418,7 +418,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
 
-        tmp_reg_info.is_write = false;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
         tmp_reg_info.reg_a = reg_info.reg_parent;
         tmp_reg_info.reg_b = reg_info.reg_parent;
 
@@ -428,7 +428,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
 
-        tmp_reg_info.is_write = false;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
         tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
@@ -436,18 +436,29 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.compiler_debug = compiler_debug;
 
-        if (reg_info.is_write)
-        {
-            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP;
-        }
-        else
-        {
-            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP;
-        }
-
         instruct_tmp.instruction.reg_1 = reg_info.reg_parent;
         instruct_tmp.instruction.reg_2 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
         instruct_tmp.instruction.imm = reg_info.reg_b;
+
+        switch (reg_info.operation_type)
+        {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_DELETE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_DELETE_VAR_PROP;
+
+            instruct_tmp.instruction.imm = 0;
+            break;
+
+        default:
+            break;
+        }
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
         break;
@@ -514,17 +525,21 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
 
-        if (reg_info.is_write)
+        switch (reg_info.operation_type)
         {
-            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR;
-
-            instruct_tmp.instruction.reg_1 = reg_info.reg_b;
-        }
-        else
-        {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR;
 
             instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR;
+
+            instruct_tmp.instruction.reg_1 = reg_info.reg_b;
+            break;
+        default:
+            break;
         }
 
         instruct_tmp.instruction.imm = (uint32_t)((uintptr_t)side->context);
@@ -538,17 +553,21 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
 
-        if (reg_info.is_write)
+        switch (reg_info.operation_type)
         {
-            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR;
-
-            instruct_tmp.instruction.reg_1 = reg_info.reg_b;
-        }
-        else
-        {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR;
 
             instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR;
+
+            instruct_tmp.instruction.reg_1 = reg_info.reg_b;
+            break;
+        default:
+            break;
         }
 
         instruct_tmp.instruction.imm = (uint32_t)((uintptr_t)side->context);
@@ -697,7 +716,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-        tmp_reg_info.is_write = true;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE;
         tmp_reg_info.reg_a = reg_info.reg_a;
         tmp_reg_info.reg_b = reg_op_a;
 
@@ -736,7 +755,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
 
-        tmp_reg_info.is_write = false;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
         tmp_reg_info.reg_a = reg_info.reg_a;
         tmp_reg_info.reg_b = reg_info.reg_a;
 
@@ -789,10 +808,12 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         simplejs_compiler_reg_info_t tmp_reg_info;
 
+        bool is_assign = reg_info.operation_type == SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE;
+
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
 
-        tmp_reg_info.have_parent = reg_info.is_write;
+        tmp_reg_info.have_parent = is_assign;
         tmp_reg_info.reg_parent = SIMPLEJS_BYTECODE_VARIABLE_PARENT;
 
         tmp_reg_info.is_sub_op = !reg_info.is_sub_op;
@@ -801,7 +822,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
 
-        if (reg_info.is_write)
+        if (is_assign)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
@@ -848,7 +869,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
-        if (reg_info.is_write)
+        if (is_assign)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR;
@@ -858,7 +879,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
             memclr(&tmp_reg_info, sizeof(tmp_reg_info));
             tmp_reg_info.avoid_refetch = true;
-            tmp_reg_info.is_write = true;
+            tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE;
             tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_PARENT;
             tmp_reg_info.reg_b = reg_info.reg_a;
 
@@ -895,7 +916,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
 
         tmp_reg_info.is_sub_assign = !reg_info.is_sub_assign;
-        tmp_reg_info.is_write = false;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
         tmp_reg_info.reg_a = reg_b;
         tmp_reg_info.reg_b = reg_b;
 
@@ -912,7 +933,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
 
-        tmp_reg_info.is_write = true;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE;
         tmp_reg_info.reg_a = reg_info.reg_a;
         tmp_reg_info.reg_b = reg_b;
 
@@ -932,7 +953,27 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         simplejs_compiler_reg_info_t tmp_reg_info;
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-        tmp_reg_info.is_write = true;
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE;
+        tmp_reg_info.reg_a = reg_info.reg_a;
+        tmp_reg_info.reg_b = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_DELETE:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 1);
+
+        simplejs_compiler_debug_t *compiler_debug = parent_debug;
+
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+
+        simplejs_compiler_reg_info_t tmp_reg_info;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_DELETE;
         tmp_reg_info.reg_a = reg_info.reg_a;
         tmp_reg_info.reg_b = reg_info.reg_a;
 

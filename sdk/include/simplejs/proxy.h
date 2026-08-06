@@ -15,8 +15,6 @@ typedef struct simplejs_proxy_property
 {
     simplejs_variable_t name;
     simplejs_variable_t value;
-
-    simplejs_list_entry_t list_entry;
 } simplejs_proxy_property_t;
 
 typedef struct simplejs_proxy_property_query
