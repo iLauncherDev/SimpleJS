@@ -1,5 +1,12 @@
 #include <builtin_object/dynamic_object.h>
 
+typedef struct simplejs_dynamic_object_property
+{
+    simplejs_proxy_property_t property;
+
+    simplejs_list_entry_t list_entry;
+} simplejs_dynamic_object_property_t;
+
 typedef struct simplejs_dynamic_object_raw
 {
     simplejs_safe_list_t property_list;
@@ -14,6 +21,7 @@ simplejs_status_t simplejs_dynamic_object_query_property(simplejs_proxy_context_
 
 simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out);
 simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in);
+simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context_t context, simplejs_variable_t *property);
 
 simplejs_status_t simplejs_dynamic_object_get_string(simplejs_proxy_context_t context, char **out);
 
@@ -26,6 +34,7 @@ simplejs_proxy_t dynamic_object_proxy = {
 
     .f_get_property_value = simplejs_dynamic_object_get_property_value,
     .f_set_property_value = simplejs_dynamic_object_set_property_value,
+    .f_delete_property = simplejs_dynamic_object_delete_property,
 
     .f_get_string = simplejs_dynamic_object_get_string,
 };
@@ -41,10 +50,10 @@ simplejs_status_t simplejs_dynamic_object_release(simplejs_proxy_context_t conte
     while (current_property != end_property)
     {
         simplejs_list_entry_t *next_property = current_property->next;
-        simplejs_proxy_property_t *property = simplejs_get_list_entry_structure(current_property);
+        simplejs_dynamic_object_property_t *object_property = simplejs_get_list_entry_structure(current_property);
 
-        simplejs_variable_dereference(&property->value);
-        simplejs_hook_mfree(property);
+        simplejs_variable_dereference(&object_property->property.value);
+        simplejs_hook_mfree(object_property);
 
         current_property = next_property;
     }
@@ -99,9 +108,9 @@ result:
     return status;
 }
 
-simplejs_proxy_property_t *simplejs_dynamic_object_find_property(simplejs_proxy_context_t context, char *name, bool create_if_necessary)
+simplejs_dynamic_object_property_t *simplejs_dynamic_object_find_property(simplejs_proxy_context_t context, char *name, bool create_if_necessary)
 {
-    simplejs_proxy_property_t *ret = NULL;
+    simplejs_dynamic_object_property_t *ret = NULL;
 
     simplejs_dynamic_object_raw_t *object = context.pointer;
 
@@ -112,10 +121,10 @@ simplejs_proxy_property_t *simplejs_dynamic_object_find_property(simplejs_proxy_
 
     while (current_property != end_property)
     {
-        simplejs_proxy_property_t *property = simplejs_get_list_entry_structure(current_property);
-        if (!strcmp(property->name, name))
+        simplejs_dynamic_object_property_t *object_property = simplejs_get_list_entry_structure(current_property);
+        if (!strcmp(object_property->property.name, name))
         {
-            ret = property;
+            ret = object_property;
             goto result;
         }
 
@@ -137,7 +146,7 @@ simplejs_proxy_property_t *simplejs_dynamic_object_find_property(simplejs_proxy_
         memclr(ret, sizeof(*ret));
         memcpy(allocated_name, name, name_size);
 
-        ret->name = allocated_name;
+        ret->property.name = allocated_name;
 
         simplejs_init_list_entry(&ret->list_entry, ret);
         simplejs_add_entry_to_safe_list(&object->property_list, &ret->list_entry, true);
@@ -162,7 +171,7 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = context.pointer;
 
-    simplejs_proxy_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
+    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
     if (!object_property)
     {
         simplejs_variable_t tmp_var;
@@ -174,7 +183,7 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
         goto result;
     }
 
-    simplejs_variable_assign(out, &object_property->value);
+    simplejs_variable_assign(out, &object_property->property.value);
 
     simplejs_dynamic_object_unlock_property_list(context);
 result:
@@ -198,14 +207,48 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
         goto result;
     }
 
-    simplejs_proxy_property_t *object_property = simplejs_dynamic_object_find_property(context, name, true);
+    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, true);
     if (!object_property)
     {
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
         goto result;
     }
 
-    simplejs_variable_assign(&object_property->value, in);
+    simplejs_variable_assign(&object_property->property.value, in);
+
+    simplejs_dynamic_object_unlock_property_list(context);
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context_t context, simplejs_variable_t *property)
+{
+    char tempString[4096];
+    char *name;
+
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
+
+    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
+
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_dynamic_object_raw_t *object = context.pointer;
+    if (object->read_only)
+    {
+        simplejs_printf("called simplejs_dynamic_object_set_property_value on read-only mode!\n");
+        goto result;
+    }
+
+    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
+    if (!object_property)
+    {
+        status = SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST;
+        goto result;
+    }
+
+    simplejs_remove_entry_from_safe_list(&object->property_list, &object_property->list_entry, true);
+
+    simplejs_variable_dereference(&object_property->property.value);
+    simplejs_hook_mfree(object_property);
 
     simplejs_dynamic_object_unlock_property_list(context);
 result:

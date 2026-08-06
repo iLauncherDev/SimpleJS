@@ -180,6 +180,7 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP] = simplejs_reverse_bytecode_opcode_nop,
+    [SIMPLEJS_BYTECODE_OPCODE_DELETE_VAR_PROP] = simplejs_reverse_bytecode_opcode_nop,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_GLOBAL_VAR] = simplejs_reverse_bytecode_opcode_nop,
 
