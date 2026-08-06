@@ -53,12 +53,21 @@ typedef struct simplejs_compiler_ast_info
     uintptr_t loop_continue_label_id;
 } simplejs_compiler_ast_info_t;
 
+typedef enum 
+{
+    SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ,
+    SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE,
+    SIMPLEJS_COMPILER_REG_OPERATION_TYPE_DELETE,
+} simplejs_compiler_reg_operation_type_t;
+
 typedef struct simplejs_compiler_reg_info
 {
     uint32_t debug_flags;
 
+    uint8_t operation_type;
+
     bool is_sub_op, is_sub_assign, avoid_refetch;
-    bool is_write, have_parent;
+    bool have_parent;
     uint8_t reg_a, reg_b, reg_parent;
 } simplejs_compiler_reg_info_t;
 

@@ -26,12 +26,12 @@ char *keywords_list_string[] = {
     "const", "let", "var",
     "if", "else",
     "for", "while",
-    "class", "new", "delete",
+    "class", "new",
     "async", "function", "return",
     "label", "goto"};
 
 char *expr_keywords_list_string[] = {
-    "typeof",
+    "typeof", "delete",
     "true", "false",
     "null", "undefined",
     "globalThis"};
