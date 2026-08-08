@@ -166,7 +166,6 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
     [SIMPLEJS_BYTECODE_OPCODE_RESTORE_CTX] = simplejs_reverse_bytecode_opcode_restore_ctx,
 
     [SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_OFFSET] = simplejs_reverse_bytecode_opcode_nop,
-    [SIMPLEJS_BYTECODE_OPCODE_INIT_ARG_OFFSET] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SAVE_ARG_OFFSET] = simplejs_reverse_bytecode_opcode_nop,
 
     [SIMPLEJS_BYTECODE_OPCODE_ALLOC_ARGS] = simplejs_reverse_bytecode_opcode_alloc_args,
