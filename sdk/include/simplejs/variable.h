@@ -42,6 +42,8 @@ union simplejs_variable
 
 struct simplejs_function_header
 {
+    pvoid vm;
+    uint32_t header_size;
     uint32_t argument_count;
     simplejs_variable_t *real_return_variable;
     simplejs_variable_t return_variable;
