@@ -87,6 +87,13 @@ void SIMPLEJS_API simplejs_destroy_vm(simplejs_vm_t *vm)
     simplejs_hook_mfree(vm);
 }
 
+uintptr_t SIMPLEJS_API simplejs_vm_get_instruction_pointer(simplejs_vm_t *vm)
+{
+    SIMPLEJS_ASSERT(vm != NULL);
+
+    return vm->state.instruction_pointer;
+}
+
 void SIMPLEJS_API simplejs_vm_set_memory(simplejs_vm_t *vm, simplejs_vm_memory_t *vm_memory)
 {
     SIMPLEJS_ASSERT(vm != NULL);
@@ -107,7 +114,7 @@ void SIMPLEJS_API simplejs_vm_set_global_variable(simplejs_vm_t *vm, simplejs_va
     simplejs_variable_assign(&vm->state.global_variable, global_variable);
 }
 
-simplejs_status_t simplejs_vm_push_args_to_stack(
+static simplejs_status_t simplejs_vm_push_function_header_to_stack(
     simplejs_vm_t *vm, uintptr_t argument_offset,
     simplejs_variable_t *return_variable,
     simplejs_variable_t *arguments, uint32_t argument_count)
@@ -122,9 +129,12 @@ simplejs_status_t simplejs_vm_push_args_to_stack(
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_pointer(vm, function_header, function_header_size), result, status);
 
     memclr(function_header, function_header_size);
+    function_header->vm = vm;
+    function_header->header_size = function_header_size;
+    function_header->argument_count = argument_count;
 
     function_header->return_variable = return_variable;
-    function_header->argument_count = argument_count;
+
     if (arguments)
     {
         for (int i = 0; i < function_header->argument_count; i++)
@@ -144,9 +154,9 @@ simplejs_status_t simplejs_vm_init_args(simplejs_vm_t *vm,
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     vm->state.argument_offset = vm->state.stack_offset;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_vm_push_args_to_stack(vm, vm->state.argument_offset,
-                                                            return_variable,
-                                                            arguments, argument_count),
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_vm_push_function_header_to_stack(vm, vm->state.argument_offset,
+                                                                       return_variable,
+                                                                       arguments, argument_count),
                              result, status);
 
 result:
@@ -269,16 +279,6 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_bytecode_opcode_init_arg_offset(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
-{
-    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-
-    vm->state.argument_offset = vm->state.stack_offset;
-
-result:
-    return status;
-}
-
 simplejs_status_t simplejs_bytecode_opcode_save_arg_offset(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -370,23 +370,15 @@ simplejs_status_t simplejs_bytecode_opcode_alloc_args(simplejs_vm_t *vm, simplej
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_variable_t *return_variable = &vm->state.variables[instruction->reg_1];
+    uint32_t argument_count = instruction->imm;
 
-    simplejs_function_header_t *function_header;
+    vm->state.argument_offset = vm->state.stack_offset;
 
-    uintptr_t function_header_size = sizeof(*function_header) + (sizeof(*function_header->arguments) * instruction->imm);
-    function_header = (void *)(vm->stack + vm->state.argument_offset);
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_pointer(vm, function_header, function_header_size), result, status);
-
-    memclr(function_header, function_header_size);
-
-    simplejs_variable_dereference(return_variable);
-    simplejs_variable_init_undefined(return_variable);
-
-    function_header->return_variable = return_variable;
-    function_header->argument_count = instruction->imm;
-
-    simplejs_vm_add_stack(&vm->state.stack_offset, function_header_size);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_vm_push_function_header_to_stack(
+                                 vm, vm->state.argument_offset,
+                                 return_variable,
+                                 NULL, argument_count),
+                             result, status);
 
 result:
     return status;
@@ -400,7 +392,7 @@ simplejs_status_t simplejs_bytecode_opcode_free_args(simplejs_vm_t *vm, simplejs
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
 
-    uintptr_t function_header_size = sizeof(*function_header) + (sizeof(*function_header->arguments) * function_header->argument_count);
+    uintptr_t function_header_size = function_header->header_size;
     simplejs_vm_add_stack(&vm->state.stack_offset, -function_header_size);
 
     simplejs_variable_dereference(&function_header->this_variable);
@@ -836,13 +828,13 @@ simplejs_status_t simplejs_bytecode_opcode_call(simplejs_vm_t *vm, simplejs_byte
     status = call_handler(vm, instruction, function_header, function);
 
 result:
-    //if (!SIMPLEJS_SUCCESS(status))
+    // if (!SIMPLEJS_SUCCESS(status))
     //{
-    //    memclr(&vm->crash_hint, sizeof(vm->crash_hint));
-    //    vm->crash_hint.is_valid_hint = true;
-    //    vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
-    //    vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
-    //}
+    //     memclr(&vm->crash_hint, sizeof(vm->crash_hint));
+    //     vm->crash_hint.is_valid_hint = true;
+    //     vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
+    //     vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
+    // }
 
     return status;
 }
@@ -1051,7 +1043,6 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_RESTORE_CTX] = simplejs_bytecode_opcode_restore_ctx,
 
     [SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_OFFSET] = simplejs_bytecode_opcode_init_loc_offset,
-    [SIMPLEJS_BYTECODE_OPCODE_INIT_ARG_OFFSET] = simplejs_bytecode_opcode_init_arg_offset,
     [SIMPLEJS_BYTECODE_OPCODE_SAVE_ARG_OFFSET] = simplejs_bytecode_opcode_save_arg_offset,
 
     [SIMPLEJS_BYTECODE_OPCODE_ALLOC_ARGS] = simplejs_bytecode_opcode_alloc_args,
