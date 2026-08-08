@@ -22,6 +22,8 @@ simplejs_status_t SIMPLEJS_API simplejs_create_vm(simplejs_vm_t **out);
 void SIMPLEJS_API simplejs_reset_vm(simplejs_vm_t *vm);
 void SIMPLEJS_API simplejs_destroy_vm(simplejs_vm_t *vm);
 
+uintptr_t SIMPLEJS_API simplejs_vm_get_instruction_pointer(simplejs_vm_t *vm);
+
 void SIMPLEJS_API simplejs_vm_set_memory(simplejs_vm_t *vm, simplejs_vm_memory_t *vm_memory);
 
 void SIMPLEJS_API simplejs_vm_set_global_variable(simplejs_vm_t *vm, simplejs_variable_t *global_variable);
