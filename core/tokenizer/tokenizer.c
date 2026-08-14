@@ -896,13 +896,6 @@ void SIMPLEJS_API simplejs_tokenize_dump_tokens(simplejs_token_ctx_t *ctx)
     }
 }
 
-psimplejs_linemap_ctx_t SIMPLEJS_API simplejs_token_ctx_get_linemap_ctx(simplejs_token_ctx_t *ctx)
-{
-    SIMPLEJS_ASSERT(ctx != NULL);
-
-    return ctx->linemap_ctx;
-}
-
 void SIMPLEJS_API simplejs_free_token_ctx(simplejs_token_ctx_t *ctx)
 {
     SIMPLEJS_ASSERT(ctx != NULL);
@@ -921,24 +914,18 @@ void SIMPLEJS_API simplejs_free_token_ctx(simplejs_token_ctx_t *ctx)
         current = next;
     }
 
-    if (ctx->linemap_ctx)
-        simplejs_free_linemap_ctx(ctx->linemap_ctx);
-
     simplejs_hook_mfree(ctx);
 }
 
 #define simplejs_tokenize_flush_identifier(label, status) SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_token(ctx, SIMPLEJS_TOKEN_TYPE_IDENTIFIER, NULL), label, status)
 
-simplejs_status_t SIMPLEJS_API simplejs_tokenize(char *file_path, simplejs_map_buffer_t *source_code, simplejs_token_ctx_t **out)
+simplejs_status_t SIMPLEJS_API simplejs_tokenize(simplejs_linemap_ctx_t *linemap_ctx, simplejs_token_ctx_t **out)
 {
-    SIMPLEJS_ASSERT(source_code != NULL);
+    SIMPLEJS_ASSERT(linemap_ctx != NULL);
     SIMPLEJS_ASSERT(out != NULL);
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-    simplejs_linemap_ctx_t *linemap_ctx = NULL;
     simplejs_token_ctx_t *ctx = NULL;
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_generate_linemap(file_path, source_code, &linemap_ctx), result, status);
 
     ctx = simplejs_alloc_token_ctx();
     if (!ctx)
@@ -948,9 +935,6 @@ simplejs_status_t SIMPLEJS_API simplejs_tokenize(char *file_path, simplejs_map_b
     }
 
     ctx->linemap_ctx = linemap_ctx;
-
-    ctx->file_path = linemap_ctx->file_path;
-    ctx->source_code = linemap_ctx->source_code;
     ctx->state = SIMPLEJS_TOKEN_STATE_IDLE;
 
     ctx->cache_fetch = &ctx->linemap_ctx->cache_fetch;
