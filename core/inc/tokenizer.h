@@ -61,9 +61,6 @@ typedef struct simplejs_token
 
 struct simplejs_token_ctx
 {
-    char *file_path;
-    simplejs_map_buffer_t *source_code;
-
     simplejs_linemap_ctx_t *linemap_ctx;
     simplejs_token_state_t state;
     struct
