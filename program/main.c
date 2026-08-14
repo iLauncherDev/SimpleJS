@@ -253,6 +253,7 @@ int main(int argc, char **argv)
     char *abs_file_path = NULL;
     simplejs_map_buffer_t *source_code = NULL;
     simplejs_thread_t *gc_thread = NULL;
+    simplejs_linemap_ctx_t *linemap_ctx = NULL;
     simplejs_token_ctx_t *token_ctx = NULL;
     simplejs_parser_ctx_t *parser_ctx = NULL;
     simplejs_compiler_ctx_t *compiler_ctx = NULL;
@@ -301,7 +302,14 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    status = simplejs_tokenize(abs_file_path, source_code, &token_ctx);
+    status = simplejs_generate_linemap(abs_file_path, source_code, &linemap_ctx);
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        printf("simplejs_generate_linemap error\n");
+        goto result;
+    }
+
+    status = simplejs_tokenize(linemap_ctx, &token_ctx);
     if (!SIMPLEJS_SUCCESS(status))
     {
         printf("simplejs_tokenize error\n");
@@ -375,7 +383,7 @@ int main(int argc, char **argv)
         goto result;
     }
 
-    simplejs_vm_executable_t *vm_executable = simplejs_vm_upload_executable(vm_memory, simplejs_token_ctx_get_linemap_ctx(token_ctx), executable, executable_size);
+    simplejs_vm_executable_t *vm_executable = simplejs_vm_upload_executable(vm_memory, linemap_ctx, executable, executable_size);
     if (!vm_executable)
     {
         printf("vm_executable is too big!\n");
