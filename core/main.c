@@ -12,9 +12,8 @@ simplejs_status_t SIMPLEJS_API simplejs_init()
 
     simplejs_initialize_composite_list();
 
-    status = simplejs_init_gc();
-    if (!SIMPLEJS_SUCCESS(status))
-        goto result;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_init_gc(), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_builtin_init_dynamic_object(), result, status);
 
 result:
     return status;
@@ -22,5 +21,5 @@ result:
 
 void SIMPLEJS_API simplejs_uninit()
 {
-    return;
+    simplejs_builtin_uninit_dynamic_object();
 }
