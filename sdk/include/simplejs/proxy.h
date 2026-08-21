@@ -44,22 +44,20 @@ void SIMPLEJS_API simplejs_free_proxy(simplejs_proxy_t *proxy);
 void SIMPLEJS_API simplejs_init_proxy_property_query(simplejs_proxy_property_query_t *out);
 void SIMPLEJS_API simplejs_delete_proxy_property_query(simplejs_proxy_property_query_t *out);
 
-#ifndef SIMPLEJS_CORE
-#define _simplejs_proxy_set_name_callback(name) \
-    void SIMPLEJS_API simplejs_proxy_set_##name##_callback(simplejs_proxy_t *proxy, simplejs_proxy_##name##_f callback)
+#define _simplejs_proxy_define_name_callback_decl(name) \
+    void SIMPLEJS_API simplejs_proxy_define_##name##_callback(simplejs_proxy_t *proxy, simplejs_proxy_##name##_f callback)
 
-_simplejs_proxy_set_name_callback(release);
+_simplejs_proxy_define_name_callback_decl(release);
 
-_simplejs_proxy_set_name_callback(lock_property_list);
-_simplejs_proxy_set_name_callback(unlock_property_list);
-_simplejs_proxy_set_name_callback(query_property);
+_simplejs_proxy_define_name_callback_decl(lock_property_list);
+_simplejs_proxy_define_name_callback_decl(unlock_property_list);
+_simplejs_proxy_define_name_callback_decl(query_property);
 
-_simplejs_proxy_set_name_callback(get_property_value);
-_simplejs_proxy_set_name_callback(set_property_value);
-_simplejs_proxy_set_name_callback(delete_property);
+_simplejs_proxy_define_name_callback_decl(get_property_value);
+_simplejs_proxy_define_name_callback_decl(set_property_value);
+_simplejs_proxy_define_name_callback_decl(delete_property);
 
-_simplejs_proxy_set_name_callback(get_string);
-#endif
+_simplejs_proxy_define_name_callback_decl(get_string);
 
 simplejs_status_t SIMPLEJS_API simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context);
 

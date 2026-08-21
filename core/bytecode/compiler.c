@@ -1293,22 +1293,25 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compiler_
 
     case SIMPLEJS_AST_NODE_TYPE_RETURN:
     {
-        SIMPLEJS_ASSERT(ast->children_list_count == 1);
+        SIMPLEJS_ASSERT(ast->children_list_count <= 1);
 
-        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(ast->children_list_entry.next);
-        simplejs_compiler_reg_info_t tmp_reg_info;
+        if (ast->children_list_count == 1)
+        {
+            simplejs_ast_node_t *left = simplejs_get_list_entry_structure(ast->children_list_entry.next);
+            simplejs_compiler_reg_info_t tmp_reg_info;
 
-        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-        tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
-        tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
+            memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+            tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
+            tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
 
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, NULL, tmp_reg_info, left), result, status);
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, NULL, tmp_reg_info, left), result, status);
 
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_RETURN_VAR;
-        instruct_tmp.instruction.reg_1 = tmp_reg_info.reg_a;
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_RETURN_VAR;
+            instruct_tmp.instruction.reg_1 = tmp_reg_info.reg_a;
 
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        }
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_JMP;

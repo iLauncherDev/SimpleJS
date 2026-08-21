@@ -472,6 +472,9 @@ result:
     if (token_ctx)
         simplejs_free_token_ctx(token_ctx);
 
+    if (linemap_ctx)
+        simplejs_free_linemap_ctx(linemap_ctx);
+
     if (gc_thread)
     {
         run_gc_thread = false;
