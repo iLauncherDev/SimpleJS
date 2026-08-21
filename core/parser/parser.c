@@ -1787,6 +1787,13 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
 
         case SIMPLEJS_PARSER_STATE_RETURN_EXPRESSION:
         {
+            if (simplejs_check_token_operator(token, ";"))
+            {
+                simplejs_pop_ast_from_stack(parser_ctx);
+
+                break;
+            }
+
             current_token = current_token->prev;
 
             parser_ctx->state = SIMPLEJS_PARSER_STATE_RETURN_END;
