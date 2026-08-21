@@ -19,7 +19,7 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *poin
     ret->proxy = proxy;
 
     simplejs_init_spinlock(&ret->gc_lock);
-    simplejs_init_list_entry(&ret->gc_list_entry, ret);
+    simplejs_init_safe_list_entry(&ret->gc_list_entry, ret);
 
     *out = ret;
 

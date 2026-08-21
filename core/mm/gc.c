@@ -41,7 +41,7 @@ void SIMPLEJS_API simplejs_gc_event()
                     goto skip;
                 }
 
-                simplejs_remove_entry_list(&object->gc_list_entry);
+                simplejs_remove_entry_from_safe_list(&simplejs_gc.object_list, &object->gc_list_entry, true);
                 simplejs_hook_mfree(object);
 
                 simplejs_printf("released object because it have no reference!\n");
@@ -68,7 +68,7 @@ simplejs_status_t simplejs_init_gc()
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
-    simplejs_init_safe_list(&simplejs_gc.object_list, &simplejs_gc);
+    simplejs_init_safe_list(&simplejs_gc.object_list, &simplejs_gc, 0);
 
 result:
     return status;
