@@ -21,6 +21,8 @@ list(APPEND SIMPLEJS_SOURCE
 
     ${SIMPLEJS_PATH}/lib/s_string.c
 
+    ${SIMPLEJS_PATH}/lib/pool.c
+
     ${SIMPLEJS_PATH}/number/alu-iptr.c
     ${SIMPLEJS_PATH}/number/alu-i32.c
     ${SIMPLEJS_PATH}/number/alu-i64.c

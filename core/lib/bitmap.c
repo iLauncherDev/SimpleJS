@@ -1,9 +1,9 @@
-#include <bitmap.h>
+#include <lib/bitmap.h>
 
-bool simplejs_bitmap_get_bit(uint8_t *bitmap, uint32_t entries, uint32_t entry)
+bool simplejs_bitmap_get_bit(uint8_t *bitmap, size_t entries, size_t entry)
 {
-    uint32_t index = BITMAP_INDEX_OFFSET(entry);
-    uint32_t bit = BITMAP_BIT_OFFSET(entry);
+    size_t index = BITMAP_INDEX_OFFSET(entry);
+    size_t bit = BITMAP_BIT_OFFSET(entry);
 
     uint8_t mask = 1 << bit;
 
@@ -12,10 +12,10 @@ bool simplejs_bitmap_get_bit(uint8_t *bitmap, uint32_t entries, uint32_t entry)
     return bitmap[index] & mask;
 }
 
-void simplejs_bitmap_set_bit(uint8_t *bitmap, uint32_t entries, uint32_t entry)
+void simplejs_bitmap_set_bit(uint8_t *bitmap, size_t entries, size_t entry)
 {
-    uint32_t index = BITMAP_INDEX_OFFSET(entry);
-    uint32_t bit = BITMAP_BIT_OFFSET(entry);
+    size_t index = BITMAP_INDEX_OFFSET(entry);
+    size_t bit = BITMAP_BIT_OFFSET(entry);
 
     uint8_t mask = 1 << bit;
 
@@ -24,10 +24,10 @@ void simplejs_bitmap_set_bit(uint8_t *bitmap, uint32_t entries, uint32_t entry)
     bitmap[index] |= mask;
 }
 
-void simplejs_bitmap_clear_bit(uint8_t *bitmap, uint32_t entries, uint32_t entry)
+void simplejs_bitmap_clear_bit(uint8_t *bitmap, size_t entries, size_t entry)
 {
-    uint32_t index = BITMAP_INDEX_OFFSET(entry);
-    uint32_t bit = BITMAP_BIT_OFFSET(entry);
+    size_t index = BITMAP_INDEX_OFFSET(entry);
+    size_t bit = BITMAP_BIT_OFFSET(entry);
 
     uint8_t mask = 1 << bit;
 
@@ -36,21 +36,25 @@ void simplejs_bitmap_clear_bit(uint8_t *bitmap, uint32_t entries, uint32_t entry
     bitmap[index] &= ~mask;
 }
 
-simplejs_status_t simplejs_bitmap_find_filtered_entry(uint8_t *bitmap, uint32_t entries, bool isFree, uint32_t *outEntry)
+bool simplejs_bitmap_find_filtered_entry(uint8_t *bitmap, size_t entries, bool is_free, size_t required_entries, size_t *out_entry)
 {
-    simplejs_status_t status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
+    SIMPLEJS_ASSERT(required_entries != 0);
 
-    for (uint32_t i = 0; i < entries; i++)
+    size_t free_entries = 0;
+
+    for (size_t i = 0; i < entries; i++)
     {
         bool state = !simplejs_bitmap_get_bit(bitmap, entries, i);
-        if (state == isFree)
+
+        free_entries = state == is_free ? (free_entries + 1) : 0;
+
+        if (free_entries >= required_entries)
         {
-            *outEntry = i;
-            status = SIMPLEJS_STATUS_SUCCESS;
-            goto result;
+            *out_entry = i - (free_entries - 1);
+
+            return true;
         }
     }
 
-result:
-    return status;
+    return false;
 }
