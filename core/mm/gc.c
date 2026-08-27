@@ -2,10 +2,12 @@
 
 simplejs_gc_t simplejs_gc = {0};
 
-void SIMPLEJS_API simplejs_gc_event()
+void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
 {
     simplejs_safe_list_acquire_lock(&simplejs_gc.object_list, true);
 
+    double object_expiration_time = simplejs_gc.object_expiration_time;
+    clock_t current_time = clock();
     uintptr_t iterations = 1;
 
     while (iterations--)
@@ -17,14 +19,22 @@ void SIMPLEJS_API simplejs_gc_event()
         {
             simplejs_list_entry_t *next_object = current_object->next;
 
-            simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+            simplejs_status_t status = SIMPLEJS_STATUS_UNSUCCESSFUL;
             simplejs_object_t *object = simplejs_get_list_entry_structure(current_object);
 
-            bool gc_lock = atomic_load_explicit(&object->gc_lock, memory_order_acquire);
-            int reference_count = atomic_load_explicit(&object->reference_count, memory_order_acquire);
-
-            if (gc_lock)
+            bool got_gc_lock = simplejs_spinlock_acquire(&object->gc_lock, false);
+            if (!got_gc_lock)
                 goto skip;
+
+            uint32_t flags = object->flags;
+            clock_t diff_time = object->modification_time - current_time;
+            double diff_time_seconds = (double)diff_time / CLOCKS_PER_SEC;
+
+            if (!ignore_expiration_time && !(flags & SIMPLEJS_OBJECT_FLAG_GC_IMMEDIATE_RELEASE) &&
+                diff_time_seconds < object_expiration_time)
+                goto skip;
+
+            int reference_count = atomic_load_explicit(&object->reference_count, memory_order_acquire);
 
             // simplejs_printf("reference_count = %d\n", reference_count);
 
@@ -37,7 +47,7 @@ void SIMPLEJS_API simplejs_gc_event()
                 status = simplejs_proxy_release(object->proxy, context);
                 if (!SIMPLEJS_SUCCESS(status))
                 {
-                    simplejs_printf("the memory maybe leaked!\n");
+                    simplejs_printf("memory leak warning!\n");
                     goto skip;
                 }
 
@@ -50,6 +60,9 @@ void SIMPLEJS_API simplejs_gc_event()
             }
 
         skip:
+            if (!SIMPLEJS_SUCCESS(status) && got_gc_lock)
+                simplejs_spinlock_release(&object->gc_lock);
+
             current_object = next_object;
         }
     }
@@ -68,6 +81,7 @@ simplejs_status_t simplejs_init_gc()
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
+    simplejs_gc.object_expiration_time = 5.0;
     simplejs_init_safe_list(&simplejs_gc.object_list, &simplejs_gc, 0);
 
 result:
