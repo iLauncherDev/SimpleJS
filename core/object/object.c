@@ -3,6 +3,9 @@
 // object functions
 simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *pointer, simplejs_proxy_t *proxy, simplejs_object_t **out)
 {
+    SIMPLEJS_ASSERT(pointer != NULL);
+    SIMPLEJS_ASSERT(proxy != NULL);
+
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_object_t *ret = simplejs_hook_malloc(sizeof(*ret));
     if (!ret)
@@ -12,14 +15,13 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *poin
     }
     memclr(ret, sizeof(*ret));
 
-    SIMPLEJS_ASSERT(pointer != NULL);
-    SIMPLEJS_ASSERT(proxy != NULL);
-
     ret->pointer = pointer;
     ret->proxy = proxy;
 
     simplejs_init_spinlock(&ret->gc_lock);
     simplejs_init_safe_list_entry(&ret->gc_list_entry, ret);
+
+    ret->modification_time = clock();
 
     *out = ret;
 
@@ -29,6 +31,8 @@ result:
 
 void SIMPLEJS_API simplejs_free_object(simplejs_object_t *object)
 {
+    SIMPLEJS_ASSERT(object != NULL);
+
     simplejs_hook_mfree(object);
 }
 
@@ -46,18 +50,43 @@ void SIMPLEJS_API simplejs_object_unlock_gc(simplejs_object_t *object)
     simplejs_spinlock_release(&object->gc_lock);
 }
 
+uint32_t SIMPLEJS_API simplejs_object_get_flags(simplejs_object_t *object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    return object->flags;
+}
+
+void SIMPLEJS_API simplejs_object_set_flags(simplejs_object_t *object, uint32_t flags)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    object->flags |= flags;
+    object->modification_time = clock();
+}
+
+void SIMPLEJS_API simplejs_object_clear_flags(simplejs_object_t *object, uint32_t flags)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    object->flags &= ~flags;
+    object->modification_time = clock();
+}
+
 void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
     atomic_fetch_add_explicit(&object->reference_count, 1, memory_order_relaxed);
+    object->modification_time = clock();
 }
 
 void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    atomic_fetch_sub_explicit(&object->reference_count, 1, memory_order_acq_rel);
+    atomic_fetch_sub_explicit(&object->reference_count, 1, memory_order_relaxed);
+    object->modification_time = clock();
 }
 
 // object proxy functions
