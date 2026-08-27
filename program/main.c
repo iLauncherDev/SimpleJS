@@ -230,19 +230,12 @@ uintptr_t gc_thread_callback(simplejs_thread_t *thread)
 
     while (run_gc_thread)
     {
-        if (current_tick >= delay)
-        {
-            current_tick = 0;
+        simplejs_gc_event(false);
 
-            printf("executing GC event!\n");
-            simplejs_gc_event();
-        }
-
-        simplejs_sleep(tick);
-        current_tick++;
+        simplejs_sleep(10);
     }
 
-    simplejs_gc_event();
+    simplejs_gc_event(true);
     printf("closed GC thread\n");
 
     return 0;
