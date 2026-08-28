@@ -18,8 +18,8 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/lib/platform/page-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/page.c
 
-    ${SIMPLEJS_PATH}/lib/platform/sleep-${SIMPLEJS_PLATFORM}.c
-    ${SIMPLEJS_PATH}/lib/sleep.c
+    ${SIMPLEJS_PATH}/lib/platform/time-${SIMPLEJS_PLATFORM}.c
+    ${SIMPLEJS_PATH}/lib/time.c
 
     ${SIMPLEJS_PATH}/lib/platform/shared_lib-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/shared_lib.c

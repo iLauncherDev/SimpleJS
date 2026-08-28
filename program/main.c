@@ -4,13 +4,11 @@
 #include <simplejs/lib/realpath.h>
 #include <simplejs/lib/thread.h>
 #include <simplejs/lib/shared_lib.h>
-#include <simplejs/lib/sleep.h>
+#include <simplejs/lib/time.h>
 #include <simplejs/compiler.h>
 #include <simplejs/vm.h>
 #include <simplejs/builtin_object/dynamic_object.h>
 #include <simplejs/lib/map_buffer_file.h>
-
-#include <time.h>
 
 uint32_t minimum_vm_memory_size = 1 * 1024 * 1024;
 uint32_t vm_memory_size = 32 * 1024 * 1024;
@@ -410,10 +408,10 @@ int main(int argc, char **argv)
 
     printf("vm started!\n");
 
-    clock_t start_time, end_time;
+    double start_time, end_time;
     double elapsed_time;
 
-    start_time = clock();
+    start_time = simplejs_get_timestamp_f64();
 
     simplejs_variable_t return_variable;
     simplejs_variable_init_undefined(&return_variable);
@@ -442,8 +440,8 @@ int main(int argc, char **argv)
         status = simplejs_execute_vm(vm);
     }
 
-    end_time = clock();
-    elapsed_time = (double)(end_time - start_time) / (double)CLOCKS_PER_SEC;
+    end_time = simplejs_get_timestamp_f64();
+    elapsed_time = end_time - start_time;
 
     printf("vm exited with '%s' on %f seconds\n", simplejs_get_status_string(status), elapsed_time);
 

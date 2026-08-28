@@ -3,7 +3,7 @@
 #include "number.h"
 #include <simplejs/object.h>
 
-#include <time.h>
+#include <simplejs/lib/time.h>
 
 struct simplejs_proxy
 {
@@ -27,7 +27,7 @@ struct simplejs_object
 
     simplejs_spinlock_t gc_lock;
     atomic_int reference_count;
-    clock_t modification_time;
+    double modification_time;
 
     simplejs_raw_object_t *pointer;
     simplejs_proxy_t *proxy;
