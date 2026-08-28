@@ -21,7 +21,7 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *poin
     simplejs_init_spinlock(&ret->gc_lock);
     simplejs_init_safe_list_entry(&ret->gc_list_entry, ret);
 
-    ret->modification_time = clock();
+    ret->modification_time = simplejs_get_timestamp_f64();
 
     *out = ret;
 
@@ -76,7 +76,7 @@ void SIMPLEJS_API simplejs_object_set_flags(simplejs_object_t *object, uint32_t 
     SIMPLEJS_ASSERT(object != NULL);
 
     object->flags |= flags;
-    object->modification_time = clock();
+    object->modification_time = simplejs_get_timestamp_f64();
 }
 
 void SIMPLEJS_API simplejs_object_clear_flags(simplejs_object_t *object, uint32_t flags)
@@ -84,7 +84,7 @@ void SIMPLEJS_API simplejs_object_clear_flags(simplejs_object_t *object, uint32_
     SIMPLEJS_ASSERT(object != NULL);
 
     object->flags &= ~flags;
-    object->modification_time = clock();
+    object->modification_time = simplejs_get_timestamp_f64();
 }
 
 void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object)
@@ -92,7 +92,7 @@ void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object)
     SIMPLEJS_ASSERT(object != NULL);
 
     atomic_fetch_add_explicit(&object->reference_count, 1, memory_order_relaxed);
-    object->modification_time = clock();
+    object->modification_time = simplejs_get_timestamp_f64();
 }
 
 void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
@@ -100,7 +100,7 @@ void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
     SIMPLEJS_ASSERT(object != NULL);
 
     atomic_fetch_sub_explicit(&object->reference_count, 1, memory_order_relaxed);
-    object->modification_time = clock();
+    object->modification_time = simplejs_get_timestamp_f64();
 }
 
 // object proxy functions
