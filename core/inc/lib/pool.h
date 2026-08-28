@@ -1,12 +1,10 @@
 #pragma once
 #include "../default.h"
 
-#include <time.h>
-
 #include <simplejs/lib/pool.h>
 #include <simplejs/lib/thread.h>
 #include <simplejs/lib/page.h>
-#include <simplejs/lib/sleep.h>
+#include <simplejs/lib/time.h>
 
 typedef struct simplejs_pool_entry
 {
@@ -21,7 +19,7 @@ typedef struct simplejs_pool_entry
 
     size_t highest_used_data_map_entry;
 
-    clock_t modification_time;
+    double modification_time;
 
     simplejs_safe_list_entry_t safe_list_entry;
 } simplejs_pool_entry_t;
