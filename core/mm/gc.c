@@ -7,7 +7,7 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
     simplejs_safe_list_acquire_lock(&simplejs_gc.object_list, true);
 
     double object_expiration_time = simplejs_gc.object_expiration_time;
-    clock_t current_time = clock();
+    double current_time = simplejs_get_timestamp_f64();
     uintptr_t iterations = 1;
 
     while (iterations--)
@@ -27,8 +27,7 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
                 goto skip;
 
             uint32_t flags = object->flags;
-            clock_t diff_time = object->modification_time - current_time;
-            double diff_time_seconds = (double)diff_time / CLOCKS_PER_SEC;
+            double diff_time_seconds = current_time - object->modification_time;
 
             if (!ignore_expiration_time && !(flags & SIMPLEJS_OBJECT_FLAG_GC_IMMEDIATE_RELEASE) &&
                 diff_time_seconds < object_expiration_time)
