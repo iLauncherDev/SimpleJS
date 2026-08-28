@@ -70,7 +70,7 @@ static bool simplejs_alloc_pool_map(
         pool_entry->data_map[free_block] = block_alloc_size;
         pool_entry->used_data_size += block_aligned_alloc_size;
 
-        pool_entry->modification_time = clock();
+        pool_entry->modification_time = simplejs_get_timestamp_f64();
 
         *out = (uint8_t *)pool_entry->data + (free_block * pool->block_size);
         return true;
@@ -249,7 +249,7 @@ void SIMPLEJS_API simplejs_pool_mfree(simplejs_pool_t *pool, void *ptr)
 
             pool_entry->data_map[ptr_block] = 0;
 
-            pool_entry->modification_time = clock();
+            pool_entry->modification_time = simplejs_get_timestamp_f64();
             break;
         }
 
@@ -263,7 +263,7 @@ static void simplejs_pool_collect_garbage(simplejs_pool_t *pool, bool ignore_exp
 {
     simplejs_spinlock_acquire(&pool->main_lock, true);
 
-    clock_t current_time = clock();
+    double current_time = simplejs_get_timestamp_f64();
 
     {
         simplejs_list_entry_t *end_pool_entry = &pool->used_alloc_list.list;
@@ -283,8 +283,7 @@ static void simplejs_pool_collect_garbage(simplejs_pool_t *pool, bool ignore_exp
             size_t end_used_data_map_entries = end_used_data_map_size / sizeof(*pool_entry->data_map);
             size_t end_used_data_size = align_to_page_size(end_used_data_map_entries * pool->block_size);
 
-            clock_t diff_time = current_time - pool_entry->modification_time;
-            double diff_time_seconds = (double)diff_time / (double)CLOCKS_PER_SEC;
+            double diff_time_seconds = current_time - pool_entry->modification_time;
 
             if (diff_time_seconds >= pool->allocation_expiration_time)
             {
@@ -323,8 +322,7 @@ static void simplejs_pool_collect_garbage(simplejs_pool_t *pool, bool ignore_exp
             simplejs_list_entry_t *next_pool_entry = current_pool_entry->next;
             simplejs_pool_entry_t *pool_entry = simplejs_get_list_entry_structure(current_pool_entry);
 
-            clock_t diff_time = current_time - pool_entry->modification_time;
-            double diff_time_seconds = (double)diff_time / (double)CLOCKS_PER_SEC;
+            double diff_time_seconds = current_time - pool_entry->modification_time;
 
             if (ignore_expiration_time ||
                 diff_time_seconds >= pool->allocation_expiration_time)
