@@ -2,8 +2,6 @@
 #include "../object.h"
 #include <simplejs/mm/gc.h>
 
-#include <time.h>
-
 typedef struct simplejs_gc
 {
     double object_expiration_time;
