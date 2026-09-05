@@ -43,6 +43,7 @@ typedef struct simplejs_reverse_vm_state
 {
     uintptr_t stack_offset;
 
+    bool block_restore_var;
     bool block_restore_ctx;
     bool block_free_args;
 
