@@ -7,6 +7,8 @@ typedef union simplejs_variable simplejs_variable_t;
 
 typedef enum simplejs_variable_type
 {
+    SIMPLEJS_VARIABLE_TYPE_UNDEFINED,
+    SIMPLEJS_VARIABLE_TYPE_NAN,
     SIMPLEJS_VARIABLE_TYPE_NUMBER,
     SIMPLEJS_VARIABLE_TYPE_OBJECT,
     SIMPLEJS_VARIABLE_TYPE_FAST_STRING,
@@ -60,6 +62,7 @@ void SIMPLEJS_API simplejs_variable_lock_gc(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_unlock_gc(simplejs_variable_t *variable);
 
 void SIMPLEJS_API simplejs_variable_init_undefined(simplejs_variable_t *variable);
+void SIMPLEJS_API simplejs_variable_init_nan(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_init_null(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_init_number(simplejs_variable_t *variable, simplejs_number_t *number);
 void SIMPLEJS_API simplejs_variable_init_object(simplejs_variable_t *variable, void *object, uint16_t object_value);
