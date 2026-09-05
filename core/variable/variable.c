@@ -7,10 +7,12 @@ uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable)
     SIMPLEJS_ASSERT(variable != NULL);
 
     uint64_t is_number_mask = -(uint64_t)(variable->type == SIMPLEJS_VARIABLE_TYPE_NUMBER);
+    uint64_t is_object_mask = -(uint64_t)(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
+
     uint64_t number_value = simplejs_number_get_int64(&variable->value.number);
     uint64_t object_value = (uintptr_t)variable->value.object;
 
-    return (number_value & is_number_mask) + (object_value & ~is_number_mask);
+    return (number_value & is_number_mask) + (object_value & is_object_mask);
 }
 
 bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, double *out)
@@ -31,6 +33,14 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
     switch (variable->type)
     {
+    case SIMPLEJS_VARIABLE_TYPE_UNDEFINED:
+        *out = "undefined";
+        break;
+
+    case SIMPLEJS_VARIABLE_TYPE_NAN:
+        *out = "NaN";
+        break;
+
     case SIMPLEJS_VARIABLE_TYPE_NUMBER:
     {
         SIMPLEJS_ASSERT(tempBufferSize > 1);
@@ -39,14 +49,6 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
         switch (number->type)
         {
-        case SIMPLEJS_NUMBER_TYPE_UNDEFINED:
-            *out = "undefined";
-            break;
-
-        case SIMPLEJS_NUMBER_TYPE_NULL:
-            *out = "null";
-            break;
-
         case SIMPLEJS_NUMBER_TYPE_BOOLEAN:
             *out = number->value.boolean ? "true" : "false";
             break;
@@ -65,6 +67,12 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
     case SIMPLEJS_VARIABLE_TYPE_OBJECT:
     {
+        if (variable->value.object == NULL)
+        {
+            *out = "null";
+            break;
+        }
+
         char *object_type = "[Unknown Object]";
         simplejs_object_get_string(variable->value.object, variable->value.object_value, &object_type);
 
@@ -121,11 +129,13 @@ void simplejs_variable_unlock_gc_object(simplejs_variable_t *variable)
     simplejs_object_unlock_gc(variable->value.object);
 }
 
+#define IS_VALID_OBJECT(variable) (variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT && variable->value.object != NULL)
+
 void SIMPLEJS_API simplejs_variable_dereference(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
+    uintptr_t mask = -IS_VALID_OBJECT(variable);
 
     uintptr_t object_f = (uintptr_t)simplejs_variable_dereference_object;
     uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
@@ -138,7 +148,7 @@ void SIMPLEJS_API simplejs_variable_reference(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
+    uintptr_t mask = -IS_VALID_OBJECT(variable);
 
     uintptr_t object_f = (uintptr_t)simplejs_variable_reference_object;
     uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
@@ -151,7 +161,7 @@ void SIMPLEJS_API simplejs_variable_lock_gc(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
+    uintptr_t mask = -IS_VALID_OBJECT(variable);
 
     uintptr_t object_f = (uintptr_t)simplejs_variable_lock_gc_object;
     uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
@@ -164,7 +174,7 @@ void SIMPLEJS_API simplejs_variable_unlock_gc(simplejs_variable_t *variable)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    uintptr_t mask = -(variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT);
+    uintptr_t mask = -IS_VALID_OBJECT(variable);
 
     uintptr_t object_f = (uintptr_t)simplejs_variable_unlock_gc_object;
     uintptr_t undef_f = (uintptr_t)simplejs_variable_jumptable_undef;
@@ -175,14 +185,18 @@ void SIMPLEJS_API simplejs_variable_unlock_gc(simplejs_variable_t *variable)
 
 void SIMPLEJS_API simplejs_variable_init_undefined(simplejs_variable_t *variable)
 {
-    variable->value.number.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED;
-    variable->type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_UNDEFINED;
+}
+
+void SIMPLEJS_API simplejs_variable_init_nan(simplejs_variable_t *variable)
+{
+    variable->type = SIMPLEJS_VARIABLE_TYPE_NAN;
 }
 
 void SIMPLEJS_API simplejs_variable_init_null(simplejs_variable_t *variable)
 {
-    variable->value.number.type = SIMPLEJS_NUMBER_TYPE_NULL;
-    variable->type = SIMPLEJS_VARIABLE_TYPE_NUMBER;
+    variable->value.object = NULL;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_OBJECT;
 }
 
 void SIMPLEJS_API simplejs_variable_init_number(simplejs_variable_t *variable, simplejs_number_t *number)

@@ -76,8 +76,6 @@ static inline uint32_t branchless_value(uint32_t a, uint32_t b, bool c)
 
 void simplejs_number_execute_alu(simplejs_number_alu_t op, simplejs_number_t *out, simplejs_number_t *a, simplejs_number_t *b)
 {
-    bool invalid_condition = a->type <= SIMPLEJS_NUMBER_TYPE_NULL || b->type <= SIMPLEJS_NUMBER_TYPE_NULL;
-
     uint8_t is_i32 = i32_check[a->type] | i32_check[b->type];
     uint8_t is_i64 = i64_check[a->type] | i64_check[b->type];
 
@@ -91,5 +89,4 @@ void simplejs_number_execute_alu(simplejs_number_alu_t op, simplejs_number_t *ou
     uint8_t alu_type = is_i32 + is_i64 + is_uiptr + is_ui32 + is_ui64 + is_float + is_double;
 
     simplejs_number_execute_alu_type_table[alu_type](op, out, a, b);
-    out->type = branchless_value(branchless_value(a->type, b->type, a->type <= SIMPLEJS_NUMBER_TYPE_NULL), out->type, invalid_condition);
 }
