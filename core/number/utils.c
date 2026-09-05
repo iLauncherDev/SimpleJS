@@ -126,9 +126,6 @@ double simplejs_number_get_float64_f64(simplejs_number_t *number)
 }
 
 uint64_t (*simplejs_number_get_int_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number) = {
-    [SIMPLEJS_NUMBER_TYPE_UNDEFINED] = simplejs_number_get_int_undef,
-    [SIMPLEJS_NUMBER_TYPE_NULL] = simplejs_number_get_int_undef,
-
     [SIMPLEJS_NUMBER_TYPE_BOOLEAN] = simplejs_number_get_int_boolean,
 
     [SIMPLEJS_NUMBER_TYPE_IPTR] = simplejs_number_get_int_iptr,
@@ -144,9 +141,6 @@ uint64_t (*simplejs_number_get_int_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs
 };
 
 float (*simplejs_number_get_float32_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number) = {
-    [SIMPLEJS_NUMBER_TYPE_UNDEFINED] = simplejs_number_get_float32_undef,
-    [SIMPLEJS_NUMBER_TYPE_NULL] = simplejs_number_get_float32_undef,
-
     [SIMPLEJS_NUMBER_TYPE_BOOLEAN] = simplejs_number_get_float32_boolean,
 
     [SIMPLEJS_NUMBER_TYPE_I32] = simplejs_number_get_float32_i32,
@@ -160,9 +154,6 @@ float (*simplejs_number_get_float32_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplej
 };
 
 double (*simplejs_number_get_float64_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number) = {
-    [SIMPLEJS_NUMBER_TYPE_UNDEFINED] = simplejs_number_get_float64_undef,
-    [SIMPLEJS_NUMBER_TYPE_NULL] = simplejs_number_get_float64_undef,
-
     [SIMPLEJS_NUMBER_TYPE_BOOLEAN] = simplejs_number_get_float64_boolean,
 
     [SIMPLEJS_NUMBER_TYPE_IPTR] = simplejs_number_get_float64_iptr,
