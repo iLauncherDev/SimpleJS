@@ -2,6 +2,8 @@
 
 typedef struct simplejs_dynamic_object_property
 {
+    bool is_hardcoded;
+
     simplejs_proxy_property_t property;
 
     simplejs_safe_list_entry_t safe_list_entry;
@@ -9,7 +11,12 @@ typedef struct simplejs_dynamic_object_property
 
 typedef struct simplejs_dynamic_object_raw
 {
+    simplejs_object_t *this_object;
+
+    simplejs_dynamic_object_property_t prototype_property;
+
     simplejs_safe_list_t property_list;
+
     bool read_only;
 } simplejs_dynamic_object_raw_t;
 
@@ -29,8 +36,12 @@ simplejs_status_t simplejs_dynamic_object_release(simplejs_proxy_context_t conte
         simplejs_dynamic_object_property_t *object_property = simplejs_get_list_entry_structure(current_property);
 
         simplejs_variable_dereference(&object_property->property.value);
+        if (object_property->is_hardcoded)
+            goto skip_property;
+
         simplejs_hook_mfree(object_property);
 
+skip_property:
         current_property = next_property;
     }
 
@@ -150,10 +161,22 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
     simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
     if (!object_property)
     {
-        simplejs_variable_t tmp_var;
-        simplejs_variable_init_undefined(&tmp_var);
+        simplejs_variable_t *proto_variable = &object->prototype_property.property.value;
 
-        simplejs_variable_assign(out, &tmp_var);
+        simplejs_object_t *proto_object = proto_variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT ? proto_variable->value.object : NULL;
+        uint16_t proto_object_value = proto_variable->value.object_value;
+
+        if (!proto_object)
+        {
+            simplejs_variable_t tmp_var;
+            simplejs_variable_init_undefined(&tmp_var);
+
+            simplejs_variable_assign(out, &tmp_var);
+        }
+        else
+        {
+            status = simplejs_object_get_property_value(proto_object, proto_object_value, property, out);
+        }
 
         // status = SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST;
         goto result;
@@ -190,6 +213,9 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
         goto result;
     }
 
+    if (object_property->is_hardcoded)
+        goto result;
+
     simplejs_variable_assign(&object_property->property.value, in);
 
     simplejs_dynamic_object_unlock_property_list(context);
@@ -220,6 +246,9 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
         status = SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST;
         goto result;
     }
+
+    if (object_property->is_hardcoded)
+        goto result;
 
     simplejs_remove_entry_from_safe_list(&object->property_list, &object_property->safe_list_entry, true);
 
@@ -252,8 +281,16 @@ simplejs_status_t SIMPLEJS_API simplejs_builtin_create_dynamic_object(simplejs_o
     memclr(dynamic_object, sizeof(*dynamic_object));
     simplejs_init_safe_list(&dynamic_object->property_list, dynamic_object, 0);
 
+    simplejs_dynamic_object_property_t *prototype_property = &dynamic_object->prototype_property;
+    prototype_property->is_hardcoded = true;
+    prototype_property->property.name = "prototype";
+    simplejs_init_safe_list_entry(&prototype_property->safe_list_entry, prototype_property);
+    simplejs_add_entry_to_safe_list(&dynamic_object->property_list, &prototype_property->safe_list_entry, true);
+
     simplejs_object_t *object = NULL;
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_object(dynamic_object, dynamic_object_proxy, &object), result, status);
+
+    dynamic_object->this_object = object;
 
     *out = object;
 result:
@@ -267,6 +304,17 @@ result:
     }
 
     return status;
+}
+
+void SIMPLEJS_API simplejs_builtin_set_dynamic_object_prototype(simplejs_object_t *object, simplejs_variable_t *prototype_value)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+    SIMPLEJS_ASSERT(object->pointer != NULL);
+
+    simplejs_dynamic_object_raw_t *dynamic_object = object->pointer;
+    simplejs_dynamic_object_property_t *prototype_property = &dynamic_object->prototype_property;
+
+    simplejs_variable_assign(&prototype_property->property.value, prototype_value);
 }
 
 void SIMPLEJS_API simplejs_builtin_set_dynamic_object_read_only(simplejs_object_t *object, bool read_only)
