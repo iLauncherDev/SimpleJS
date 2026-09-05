@@ -95,6 +95,7 @@ result:
     return status;
 }
 
+simplejs_status_t simplejs_bytecode_opcode_restore_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction);
 simplejs_status_t simplejs_bytecode_opcode_restore_ctx(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction);
 simplejs_status_t simplejs_bytecode_opcode_free_args(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction);
 simplejs_status_t simplejs_bytecode_opcode_return(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction);
