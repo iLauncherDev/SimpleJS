@@ -458,6 +458,32 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         break;
     }
 
+    case SIMPLEJS_AST_NODE_TYPE_UNDEFINED:
+    {
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_NULL:
+    {
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        break;
+    }
+
     case SIMPLEJS_AST_NODE_TYPE_NUMBER:
     {
         memclr(&instruct_tmp, sizeof(instruct_tmp));
@@ -1628,6 +1654,12 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         simplejs_printf("set_func_arg_var %u, v%u", instruction.imm, instruction.reg_1);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED:
+        simplejs_printf("set_var_undefined v%u", instruction.reg_1);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL:
+        simplejs_printf("set_var_null v%u", instruction.reg_1);
+        break;
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER:
     {
         simplejs_number_t temp_number;

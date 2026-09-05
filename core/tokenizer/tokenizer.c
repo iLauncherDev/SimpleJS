@@ -148,9 +148,10 @@ void simplejs_initialize_composite_list()
     }
 }
 
-static FUNC_IS_ON_STRING(simplejs_is_keyword, keywords_list_string) static FUNC_IS_ON_STRING(simplejs_is_expr_keyword, expr_keywords_list_string)
+static FUNC_IS_ON_STRING(simplejs_is_keyword, keywords_list_string);
+static FUNC_IS_ON_STRING(simplejs_is_expr_keyword, expr_keywords_list_string);
 
-    static bool simplejs_is_number(char *string)
+static bool simplejs_is_number(char *string)
 {
     char c1 = string[0];
     if (c1 >= '0' && c1 <= '9')
