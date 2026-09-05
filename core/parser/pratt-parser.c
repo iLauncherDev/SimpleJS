@@ -707,6 +707,18 @@ static simplejs_status_t simplejs_nud(
         goto result;
     }
 
+    if (simplejs_check_token_expr_keyword(token, "undefined"))
+    {
+        status = simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_UNDEFINED, out);
+        goto result;
+    }
+
+    if (simplejs_check_token_expr_keyword(token, "null"))
+    {
+        status = simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_NULL, out);
+        goto result;
+    }
+
     if (simplejs_check_token_expr_keyword(token, "delete"))
     {
         status = simplejs_parse_expression(parser_ctx, start_token, &right, 130, end_operators, end_operators_size);
