@@ -331,7 +331,6 @@ simplejs_status_t simplejs_bytecode_opcode_save_ctx(simplejs_vm_t *vm, simplejs_
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_vm_context_t *context = (void *)(vm->stack + vm->state.stack_offset);
-    simplejs_number_t undef_number = {.type = SIMPLEJS_NUMBER_TYPE_UNDEFINED};
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_check_stack_struct(vm, context), result, status);
 
@@ -497,7 +496,8 @@ simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simpl
 
     simplejs_variable_t *output = &vm->state.variables[instruction->imm & 0x0F];
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
+    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT ||
+        variable->value.object == NULL)
     {
         memclr(&vm->crash_hint, sizeof(vm->crash_hint));
         vm->crash_hint.is_valid_hint = true;
@@ -535,7 +535,8 @@ simplejs_status_t simplejs_bytecode_opcode_set_var_prop(simplejs_vm_t *vm, simpl
 
     simplejs_variable_t *input = &vm->state.variables[instruction->imm & 0x0F];
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
+    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT ||
+        variable->value.object == NULL)
     {
         memclr(&vm->crash_hint, sizeof(vm->crash_hint));
         vm->crash_hint.is_valid_hint = true;
@@ -571,7 +572,8 @@ simplejs_status_t simplejs_bytecode_opcode_delete_var_prop(simplejs_vm_t *vm, si
 
     simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT)
+    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT ||
+        variable->value.object == NULL)
     {
         memclr(&vm->crash_hint, sizeof(vm->crash_hint));
         vm->crash_hint.is_valid_hint = true;
@@ -699,6 +701,32 @@ simplejs_status_t simplejs_bytecode_opcode_set_func_arg_var(simplejs_vm_t *vm, s
     simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
 
     simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_var_undefined(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t variable;
+    simplejs_variable_init_undefined(&variable);
+
+    simplejs_variable_assign(&vm->state.variables[instruction->reg_1], &variable);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_var_null(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t variable;
+    simplejs_variable_init_null(&variable);
+
+    simplejs_variable_assign(&vm->state.variables[instruction->reg_1], &variable);
 
 result:
     return status;
@@ -935,6 +963,38 @@ static simplejs_status_t var_fail_default(
     return SIMPLEJS_STATUS_PROGRAM_CRASHED;
 }
 
+static simplejs_status_t var_fail_x_equal(
+    simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary, bool is_equal)
+{
+    simplejs_variable_t *v_a = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *v_b = &vm->state.variables[instruction->reg_2];
+    simplejs_variable_t *v_out = &vm->state.variables[instruction->imm & 0x0F];
+
+    simplejs_variable_t tmp_out = {.type = SIMPLEJS_VARIABLE_TYPE_NUMBER};
+    simplejs_number_t *tmp_num = &tmp_out.value.number;
+
+    tmp_num->type = SIMPLEJS_NUMBER_TYPE_BOOLEAN;
+    tmp_num->value.boolean = v_a->type == v_b->type && v_a->value.object == v_b->value.object;
+
+    tmp_num->value.boolean = (tmp_num->value.boolean * is_equal) + (!tmp_num->value.boolean * !is_equal);
+
+    simplejs_variable_assign(v_out, &tmp_out);
+
+    return SIMPLEJS_STATUS_SUCCESS;
+}
+
+static simplejs_status_t var_fail_equal(
+    simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary)
+{
+    return var_fail_x_equal(vm, instruction, variable, id, is_binary, true);
+}
+
+static simplejs_status_t var_fail_not_equal(
+    simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary)
+{
+    return var_fail_x_equal(vm, instruction, variable, id, is_binary, false);
+}
+
 static simplejs_status_t var_fail_logical_not(
     simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary)
 {
@@ -945,6 +1005,20 @@ static simplejs_status_t var_fail_logical_not(
     tmp_num->value.boolean = !variable->value.object;
 
     simplejs_variable_assign(variable, &tmp_out);
+
+    return SIMPLEJS_STATUS_SUCCESS;
+}
+
+static simplejs_status_t var_fail_nan(
+    simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_variable_t *variable, int id, bool is_binary)
+{
+    int v_out_slot = ((instruction->imm & 0x0F) * (int)is_binary) + (instruction->reg_1 * (int)!is_binary);
+    simplejs_variable_t *v_out = &vm->state.variables[v_out_slot];
+
+    simplejs_variable_t tmp_out;
+    simplejs_variable_init_nan(&tmp_out);
+
+    simplejs_variable_assign(v_out, &tmp_out);
 
     return SIMPLEJS_STATUS_SUCCESS;
 }
@@ -1002,33 +1076,34 @@ static simplejs_status_t var_fail_logical_not(
         return status;                                                                                                                             \
     }
 
-simplejs_bytecode_opcode_unary_var(inc, INC, var_fail_default);
-simplejs_bytecode_opcode_unary_var(dec, DEC, var_fail_default);
+simplejs_bytecode_opcode_unary_var(inc, INC, var_fail_nan);
+simplejs_bytecode_opcode_unary_var(dec, DEC, var_fail_nan);
 
 simplejs_bytecode_opcode_unary_var(logical_not, LOGICAL_NOT, var_fail_logical_not);
-simplejs_bytecode_opcode_unary_var(bitwise_not, BITWISE_NOT, var_fail_default);
-simplejs_bytecode_opcode_unary_var(neg, NEG, var_fail_default);
+simplejs_bytecode_opcode_unary_var(bitwise_not, BITWISE_NOT, var_fail_nan);
+simplejs_bytecode_opcode_unary_var(neg, NEG, var_fail_nan);
 
-simplejs_bytecode_opcode_binary_var(equal, EQUAL, var_fail_default);
-simplejs_bytecode_opcode_binary_var(not_equal, NOT_EQUAL, var_fail_default);
-simplejs_bytecode_opcode_binary_var(greater, GREATER, var_fail_default);
-simplejs_bytecode_opcode_binary_var(below, BELOW, var_fail_default);
-simplejs_bytecode_opcode_binary_var(greater_equal, GREATER_EQUAL, var_fail_default);
-simplejs_bytecode_opcode_binary_var(below_equal, BELOW_EQUAL, var_fail_default);
+simplejs_bytecode_opcode_binary_var(equal, EQUAL, var_fail_equal);
+simplejs_bytecode_opcode_binary_var(not_equal, NOT_EQUAL, var_fail_not_equal);
 
-simplejs_bytecode_opcode_binary_var(or, OR, var_fail_default);
-simplejs_bytecode_opcode_binary_var(and, AND, var_fail_default);
+simplejs_bytecode_opcode_binary_var(greater, GREATER, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(below, BELOW, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(greater_equal, GREATER_EQUAL, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(below_equal, BELOW_EQUAL, var_fail_nan);
 
-simplejs_bytecode_opcode_binary_var(shl, SHL, var_fail_default);
-simplejs_bytecode_opcode_binary_var(shr, SHR, var_fail_default);
-simplejs_bytecode_opcode_binary_var(sal, SAL, var_fail_default);
-simplejs_bytecode_opcode_binary_var(sar, SAR, var_fail_default);
+simplejs_bytecode_opcode_binary_var(or, OR, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(and, AND, var_fail_nan);
 
-simplejs_bytecode_opcode_binary_var(add, ADD, var_fail_default);
-simplejs_bytecode_opcode_binary_var(sub, SUB, var_fail_default);
-simplejs_bytecode_opcode_binary_var(mul, MUL, var_fail_default);
-simplejs_bytecode_opcode_binary_var(div, DIV, var_fail_default);
-simplejs_bytecode_opcode_binary_var(mod, MOD, var_fail_default);
+simplejs_bytecode_opcode_binary_var(shl, SHL, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(shr, SHR, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(sal, SAL, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(sar, SAR, var_fail_nan);
+
+simplejs_bytecode_opcode_binary_var(add, ADD, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(sub, SUB, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(mul, MUL, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(div, DIV, var_fail_nan);
+simplejs_bytecode_opcode_binary_var(mod, MOD, var_fail_nan);
 
 simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS_BYTECODE_OPCODE_END] = {
     [SIMPLEJS_BYTECODE_OPCODE_MOV_VAR] = simplejs_bytecode_opcode_mov_var,
@@ -1070,6 +1145,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_get_func_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_set_func_arg_var,
 
+    [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED] = simplejs_bytecode_opcode_set_var_undefined,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL] = simplejs_bytecode_opcode_set_var_null,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER] = simplejs_bytecode_opcode_set_var_number,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NATIVE_FUNCTION] = simplejs_bytecode_opcode_set_var_native_function,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING] = simplejs_bytecode_opcode_set_var_fast_string,
