@@ -9,6 +9,17 @@
 //var b = 2;
 //var result = a + b;
 
+//class my_class {
+//    var default_value = 0;
+//
+//    function new()
+//    {
+//        this.default_value = 20;
+//    }
+//}
+//
+//var my_instance = new my_class();
+
 function indirect_return(a)
 {
     return a;
