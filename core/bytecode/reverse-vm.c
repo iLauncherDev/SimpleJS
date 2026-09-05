@@ -65,6 +65,38 @@ simplejs_status_t simplejs_reverse_bytecode_opcode_add_stack_var_size(simplejs_v
     return status;
 }
 
+simplejs_status_t simplejs_reverse_bytecode_opcode_save_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_push_vm_reverse_state(vm), result, status);
+
+    vm->reverse_state.block_restore_var = true;
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_reverse_bytecode_opcode_restore_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    if (vm->reverse_state.block_restore_var)
+    {
+        simplejs_reverse_vm_state_t *reverse_state;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_pop_vm_reverse_state(vm, &reverse_state), result, status);
+
+        vm->reverse_state.block_restore_var = reverse_state->block_restore_var;
+        goto result;
+    }
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_bytecode_opcode_restore_var(vm, instruction), result, status);
+
+result:
+    return status;
+}
+
 simplejs_status_t simplejs_reverse_bytecode_opcode_save_ctx(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -159,8 +191,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
     [SIMPLEJS_BYTECODE_OPCODE_ADD_STACK] = simplejs_reverse_bytecode_opcode_add_stack,
     [SIMPLEJS_BYTECODE_OPCODE_ADD_STACK_VAR_SIZE] = simplejs_reverse_bytecode_opcode_add_stack_var_size,
 
-    [SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR] = simplejs_reverse_bytecode_opcode_nop,
-    [SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR] = simplejs_reverse_bytecode_opcode_nop,
+    [SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR] = simplejs_reverse_bytecode_opcode_save_var,
+    [SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR] = simplejs_reverse_bytecode_opcode_restore_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_SAVE_CTX] = simplejs_reverse_bytecode_opcode_save_ctx,
     [SIMPLEJS_BYTECODE_OPCODE_RESTORE_CTX] = simplejs_reverse_bytecode_opcode_restore_ctx,
