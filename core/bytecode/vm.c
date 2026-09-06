@@ -1,4 +1,5 @@
 #include <vm.h>
+#include <simplejs/builtin_object/dynamic_object.h>
 
 #define STACK_SIZE (64 * 1024)
 
