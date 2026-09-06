@@ -873,6 +873,8 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
     {
         SIMPLEJS_ASSERT(side->children_list_count == 1);
 
+        bool assign_first = side->flags & SIMPLEJS_AST_NODE_FLAG_ASSIGN_FIRST;
+
         simplejs_compiler_debug_t *compiler_debug;
         simplejs_alloc_and_insert_temp(compiler_debug, side, compiler_debug_list, result, status);
         compiler_debug->flags = SIMPLEJS_BYTECODE_DEBUG_INFO_UNARY_OP_FLAG;
@@ -893,7 +895,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
 
-        if (side->flags)
+        if (assign_first)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
@@ -920,7 +922,7 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
 
-        if (!side->flags)
+        if (!assign_first)
         {
             memclr(&instruct_tmp, sizeof(instruct_tmp));
             simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, side, compiler_debug, result, status);
@@ -1452,6 +1454,216 @@ result:
     return status;
 }
 
+typedef struct compile_set_prop_info
+{
+    bool is_function;
+
+    uint32_t var_index;
+    uintptr_t label_id;
+} compile_set_prop_info_t;
+
+simplejs_status_t simplejs_compile_set_prop(simplejs_compiler_ctx_t *compiler_ctx, uint8_t reg, simplejs_utf8_string_t *property, compile_set_prop_info_t *info)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_compiler_instruction_t instruct_tmp;
+
+    uint8_t obj_reg = reg;
+    uint8_t prop_reg = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+    uint8_t value_reg = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+    instruct_tmp.instruction.reg_1 = prop_reg;
+
+    instruct_tmp.symbol.data = property->buffer;
+    instruct_tmp.symbol.data_size = property->valid_size + 1;
+    instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
+
+    if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
+        compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    if (info->is_function)
+    {
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NATIVE_FUNCTION;
+        instruct_tmp.instruction.reg_1 = value_reg;
+
+        instruct_tmp.symbol.label_id = info->label_id;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+    }
+    else
+    {
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR;
+        instruct_tmp.instruction.reg_1 = value_reg;
+        instruct_tmp.instruction.imm = info->var_index;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+    }
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP;
+    instruct_tmp.instruction.reg_1 = obj_reg;
+    instruct_tmp.instruction.reg_2 = prop_reg;
+    instruct_tmp.instruction.imm = value_reg;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_compile_ast_class(simplejs_compiler_ctx_t *compiler_ctx, simplejs_ast_node_t *ast_class)
+{
+    simplejs_ast_var_context_t *class_var_context = ast_class->context;
+    simplejs_compiler_ast_info_t class_ast_info = {0};
+
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_compiler_instruction_t instruct_tmp;
+
+    char *class_var_name = (char *)class_var_context->name->buffer;
+
+    char *class_string_prefix = "[class ";
+    char *class_string_sufix = "]";
+    int class_prefix_sufix_len = strlen(class_string_prefix) + strlen(class_string_sufix);
+    int class_name_total_size = class_prefix_sufix_len + strlen(class_var_name) + 1; 
+
+    char *class_string = NULL;
+    simplejs_compiler_reg_info_t tmp_reg_info;
+
+    class_string = simplejs_hook_malloc(class_name_total_size);
+    if (!class_string)
+    {
+        status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
+        goto result;
+    }
+    memclr(class_string, class_name_total_size);
+
+    strncat(class_string, class_string_prefix, class_name_total_size - 1);
+    strncat(class_string, class_var_name, class_name_total_size - 1);
+    strncat(class_string, class_string_sufix, class_name_total_size - 1);
+
+    memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+    tmp_reg_info.reg_a = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
+    tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_B;
+
+    if (class_var_context->super_class_ast)
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, NULL, tmp_reg_info, class_var_context->super_class_ast), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR;
+    instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_CLASS;
+    instruct_tmp.instruction.reg_2 = tmp_reg_info.reg_a;
+    instruct_tmp.instruction.imm = SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR_TYPE_DYNAMIC_OBJECT;
+    if (!class_var_context->super_class_ast)
+        instruct_tmp.instruction.imm |= SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR_FLAG_IGNORE_ARGUMENT;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    simplejs_list_entry_t *end_ast = &ast_class->children_list_entry;
+    simplejs_list_entry_t *current_ast = end_ast->next;
+
+    while (current_ast != end_ast)
+    {
+        simplejs_ast_node_t *ast = simplejs_get_list_entry_structure(current_ast);
+
+        status = simplejs_compile_single_ast(compiler_ctx, ast, class_ast_info);
+        if (!SIMPLEJS_SUCCESS(status))
+        {
+            goto result;
+        }
+
+        switch (ast->type)
+        {
+        case SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST:
+        {
+            simplejs_list_entry_t *end_var = &ast->children_list_entry;
+            simplejs_list_entry_t *current_var = end_var->next;
+
+            while (current_var != end_var)
+            {
+                simplejs_ast_node_t *var_ast = simplejs_get_list_entry_structure(current_var);
+                simplejs_ast_var_context_t *var_context = var_ast->context;
+
+                compile_set_prop_info_t prop_info = {.is_function = false, .var_index = var_context->index};
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_set_prop(compiler_ctx, SIMPLEJS_BYTECODE_VARIABLE_CLASS, var_context->name, &prop_info), result, status);
+
+                current_var = current_var->next;
+            }
+
+            break;
+        }
+
+        case SIMPLEJS_AST_NODE_TYPE_FUNCDECL:
+        {
+            simplejs_ast_function_context_t *function_context = ast->context;
+
+            compile_set_prop_info_t prop_info = {.is_function = true, .label_id = (uintptr_t)function_context->name->buffer};
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_set_prop(compiler_ctx, SIMPLEJS_BYTECODE_VARIABLE_CLASS, function_context->name, &prop_info), result, status);
+
+            break;
+        }
+
+        default:
+            break;
+        }
+
+        current_ast = current_ast->next;
+    }
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+    instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+
+    instruct_tmp.symbol.data = DYNAMIC_OBJECT_STRING_PROPERTY;
+    instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
+    instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
+    if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
+        compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+    instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+
+    instruct_tmp.symbol.can_free_data = true;
+    instruct_tmp.symbol.data = class_string;
+    instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
+    instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
+
+    compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP;
+    instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_CLASS;
+    instruct_tmp.instruction.reg_2 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+    instruct_tmp.instruction.imm = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR;
+    instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_CLASS;
+    instruct_tmp.instruction.imm = class_var_context->index;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    memclr(&instruct_tmp, sizeof(instruct_tmp));
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_STD_FLAGS;
+    instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_CLASS;
+    instruct_tmp.instruction.imm = SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        if (class_string)
+            simplejs_hook_mfree(class_string);
+    }
+
+    return status;
+}
+
 simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compiler_ctx, simplejs_ast_node_t *ast, simplejs_compiler_ast_info_t ast_info)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -1467,6 +1679,31 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compiler_
     {
     case SIMPLEJS_AST_NODE_TYPE_FUNCDECL:
     {
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_CLASSDECL:
+    {
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_class(compiler_ctx, ast), result, status);
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST:
+    {
+        SIMPLEJS_ASSERT(ast->children_list_count >= 1);
+
+        simplejs_list_entry_t *end_var = &ast->children_list_entry;
+        simplejs_list_entry_t *current_var = end_var->next;
+
+        while (current_var != end_var)
+        {
+            simplejs_ast_node_t *var = simplejs_get_list_entry_structure(current_var);
+
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_single_ast(compiler_ctx, var, ast_info), result, status);
+
+            current_var = current_var->next;
+        }
+
         break;
     }
 
@@ -1487,25 +1724,6 @@ simplejs_status_t simplejs_compile_single_ast(simplejs_compiler_ctx_t *compiler_
         instruct_tmp.instruction.imm = var_context->index;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
-        break;
-    }
-
-    case SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST:
-    {
-        SIMPLEJS_ASSERT(ast->children_list_count >= 1);
-
-        simplejs_list_entry_t *end_var = &ast->children_list_entry;
-        simplejs_list_entry_t *current_var = end_var->next;
-
-        while (current_var != end_var)
-        {
-            simplejs_ast_node_t *var = simplejs_get_list_entry_structure(current_var);
-
-            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_single_ast(compiler_ctx, var, ast_info), result, status);
-
-            current_var = current_var->next;
-        }
-
         break;
     }
 

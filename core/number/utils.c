@@ -74,15 +74,19 @@ GEN_NUMBER_FUNC_TABLE(double, double, float64);
 
 float SIMPLEJS_API simplejs_number_get_float32(simplejs_number_t *number)
 {
-    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    if (number->type >= SIMPLEJS_NUMBER_TYPE_END)
+        return 0;
+
     SIMPLEJS_ASSERT(simplejs_number_get_float32_jumptable[number->type] != NULL);
 
-    return (uint32_t)simplejs_number_get_float32_jumptable[number->type](number);
+    return simplejs_number_get_float32_jumptable[number->type](number);
 }
 
 double SIMPLEJS_API simplejs_number_get_float64(simplejs_number_t *number)
 {
-    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    if (number->type >= SIMPLEJS_NUMBER_TYPE_END)
+        return 0;
+
     SIMPLEJS_ASSERT(simplejs_number_get_float64_jumptable[number->type] != NULL);
 
     return simplejs_number_get_float64_jumptable[number->type](number);
@@ -90,7 +94,9 @@ double SIMPLEJS_API simplejs_number_get_float64(simplejs_number_t *number)
 
 uint32_t SIMPLEJS_API simplejs_number_get_int32(simplejs_number_t *number)
 {
-    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    if (number->type >= SIMPLEJS_NUMBER_TYPE_END)
+        return 0;
+
     SIMPLEJS_ASSERT(simplejs_number_get_int32_jumptable[number->type] != NULL);
 
     return simplejs_number_get_int32_jumptable[number->type](number);
@@ -98,7 +104,9 @@ uint32_t SIMPLEJS_API simplejs_number_get_int32(simplejs_number_t *number)
 
 uint64_t SIMPLEJS_API simplejs_number_get_int64(simplejs_number_t *number)
 {
-    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    if (number->type >= SIMPLEJS_NUMBER_TYPE_END)
+        return 0;
+
     SIMPLEJS_ASSERT(simplejs_number_get_int64_jumptable[number->type] != NULL);
 
     return simplejs_number_get_int64_jumptable[number->type](number);
@@ -106,7 +114,9 @@ uint64_t SIMPLEJS_API simplejs_number_get_int64(simplejs_number_t *number)
 
 uintptr_t SIMPLEJS_API simplejs_number_get_intptr(simplejs_number_t *number)
 {
-    SIMPLEJS_ASSERT(number->type < SIMPLEJS_NUMBER_TYPE_END);
+    if (number->type >= SIMPLEJS_NUMBER_TYPE_END)
+        return 0;
+
     SIMPLEJS_ASSERT(simplejs_number_get_intptr_jumptable[number->type] != NULL);
 
     return simplejs_number_get_intptr_jumptable[number->type](number);

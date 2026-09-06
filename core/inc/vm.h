@@ -1,6 +1,7 @@
 #pragma once
 #include "bytecode.h"
 #include "object.h"
+#include "mm/gc.h"
 #include "compiler.h"
 #include <simplejs/vm.h>
 #include <simplejs/mm/gc.h>
