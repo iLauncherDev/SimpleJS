@@ -214,13 +214,11 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
 
-    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
     if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
     {
-        simplejs_printf("called simplejs_dynamic_object_set_property_value on perma-lock mode!\n");
+        simplejs_printf("called simplejs_dynamic_object_delete_property on perma-lock mode!\n");
         goto result;
     }
 
@@ -237,7 +235,7 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
         goto result;
     }
 
-    if (object_property->is_hardcoded)
+    if (object_property->is_hardlocked)
         goto result;
 
     simplejs_variable_assign_ex(context.object, &object_property->property.value, in);
@@ -253,8 +251,6 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
     char *name;
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
-
-    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
@@ -292,9 +288,44 @@ result:
 
 simplejs_status_t simplejs_dynamic_object_get_string(simplejs_proxy_context_t context, char **out)
 {
-    *out = "[Dynamic Object]";
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
-    return SIMPLEJS_STATUS_SUCCESS;
+    char *out_string = "[Dynamic Object]";
+    simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
+
+    simplejs_dynamic_object_property_t *object_string_property = &dynamic_object->object_string_property;
+    simplejs_variable_t *object_string_value = &object_string_property->property.value;
+
+    simplejs_object_t *string_object = object_string_value->type == SIMPLEJS_VARIABLE_TYPE_OBJECT ? object_string_value->value.object : NULL;
+    uint16_t string_object_value = object_string_value->value.object_value;
+
+    if (string_object &&
+        string_object != context.object)
+    {
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_string(string_object, string_object_value, &out_string), result, status);
+    }
+    else if (object_string_value->type == SIMPLEJS_VARIABLE_TYPE_FAST_STRING)
+    {
+        out_string = object_string_value->value.fast_string;
+    }
+    else
+    {
+        simplejs_variable_t *proto_variable = &dynamic_object->prototype_property.property.value;
+
+        simplejs_object_t *proto_object = proto_variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT ? proto_variable->value.object : NULL;
+        uint16_t proto_object_value = proto_variable->value.object_value;
+
+        if (proto_object &&
+            proto_object != context.object)
+        {
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_string(proto_object, proto_object_value, &out_string), result, status);
+        }
+    }
+
+    *out = out_string;
+
+result:
+    return status;
 }
 
 static void init_hardcoded_property(simplejs_dynamic_object_raw_t *dynamic_object, simplejs_dynamic_object_property_t *hard_property, char *name)
@@ -325,8 +356,12 @@ simplejs_status_t SIMPLEJS_API simplejs_builtin_create_dynamic_object(simplejs_o
     simplejs_init_safe_list(&dynamic_object->property_list, dynamic_object, 0);
 
     simplejs_dynamic_object_property_t *prototype_property = &dynamic_object->prototype_property;
+    simplejs_dynamic_object_property_t *object_string_property = &dynamic_object->object_string_property;
 
     init_hardcoded_property(dynamic_object, prototype_property, SIMPLEJS_CLASS_PROTOTYPE_PROPERTY);
+    prototype_property->is_hardlocked = true;
+
+    init_hardcoded_property(dynamic_object, object_string_property, DYNAMIC_OBJECT_STRING_PROPERTY);
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_object(dynamic_object, dynamic_object_proxy, &object), result, status);
 
