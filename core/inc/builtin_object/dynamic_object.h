@@ -2,6 +2,8 @@
 #include "../object.h"
 #include <simplejs/builtin_object/dynamic_object.h>
 
+#define DYNAMIC_OBJECT_STRING_PROPERTY "#object_string"
+
 typedef struct simplejs_dynamic_object_property
 {
     bool is_hardcoded, is_hardlocked;
@@ -16,6 +18,7 @@ typedef struct simplejs_dynamic_object_raw
     uint32_t std_flags;
 
     simplejs_dynamic_object_property_t prototype_property;
+    simplejs_dynamic_object_property_t object_string_property;
 
     simplejs_safe_list_t property_list;
 } simplejs_dynamic_object_raw_t;

@@ -16,6 +16,7 @@ typedef struct local_scoped
 {
     bool is_function, is_argument;
 
+    uint32_t flags;
     uint32_t reference;
     simplejs_utf8_string_t *string;
 } local_scoped_t;
@@ -279,7 +280,7 @@ static simplejs_status_t simplejs_make_unary_node(simplejs_token_t *operator, si
     unary_ast->context = operator->string;
     unary_ast->diagnostic_token = operator;
 
-    unary_ast->flags = assign_first;
+    unary_ast->flags |= assign_first ? SIMPLEJS_AST_NODE_FLAG_ASSIGN_FIRST : 0;
 
     simplejs_insert_children_ast_to_parent(unary_ast, left);
 
@@ -365,6 +366,7 @@ static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t 
             if (!strcmp((char *)var->name->buffer, (char *)string->buffer))
             {
                 out_struct->reference = var->index;
+                out_struct->flags = var->ast_node->flags;
                 return true;
             }
 
@@ -407,6 +409,8 @@ static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t 
             {
                 out_struct->is_function = true;
                 out_struct->string = function->name;
+                out_struct->flags = function->ast_node->flags;
+
                 return true;
             }
 
@@ -418,18 +422,23 @@ static bool simplejs_get_scoped_reference_callback(simplejs_ast_scope_context_t 
     return false;
 }
 
-simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t **out, simplejs_token_t *token, bool is_property)
+simplejs_status_t simplejs_alloc_identifier_node(
+    simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t *current_ast_stack, simplejs_ast_node_t **out, simplejs_token_t *token, bool is_property)
 {
     simplejs_utf8_string_t *function_name;
 
-    local_scoped_t local_scoped;
-    bool is_local = simplejs_get_scoped_output_alt(parser_ctx, parser_ctx->current_ast_stack, token->string, &local_scoped, simplejs_get_scoped_reference_callback, true);
+    simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
+
+    local_scoped_t local_scoped = {0};
+    bool is_local = simplejs_get_scoped_output_alt(parser_ctx, current_ast_stack, token->string, &local_scoped, simplejs_get_scoped_reference_callback, true);
 
     simplejs_ast_node_t *identifier_ast = NULL;
-    simplejs_ast_node_t *global_ast = NULL;
-    simplejs_ast_node_t *property_ast = NULL;
+    simplejs_ast_node_t *a_ast = NULL;
+    simplejs_ast_node_t *b_ast = NULL;
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    bool is_class_scope = !local_scoped.is_argument && (current_function_context->ast_node->flags & SIMPLEJS_AST_NODE_FLAG_IS_CLASS_AST_NODE);
 
     if (is_property)
     {
@@ -463,13 +472,14 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
         identifier_ast->diagnostic_token = token;
         identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
     }
-    else if (is_local)
+    else if (is_local && !is_class_scope)
     {
         if (local_scoped.is_function)
         {
             SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_FUNCTION_REFERENCE, &identifier_ast), result, status);
 
             identifier_ast->context = local_scoped.string;
+            identifier_ast->flags = local_scoped.flags;
         }
         else
         {
@@ -480,21 +490,24 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
             SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &identifier_ast), result, status);
 
             identifier_ast->context = (void *)((uintptr_t)local_scoped.reference);
+            identifier_ast->diagnostic_token = token;
+            identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
         }
-
-        identifier_ast->diagnostic_token = token;
-        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
     }
     else
     {
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE, &global_ast), result, status);
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE, &property_ast), result, status);
+        simplejs_ast_node_type_t a_type = SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE;
+        if (is_class_scope)
+            a_type = SIMPLEJS_AST_NODE_TYPE_THIS_REFERENCE;
 
-        property_ast->context = token->string;
-        property_ast->diagnostic_token = token;
-        property_ast->diagnostic_offset = property_ast->diagnostic_token->offset;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(a_type, &a_ast), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE, &b_ast), result, status);
 
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_make_binary_node(token, SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS, &identifier_ast, global_ast, property_ast), result, status);
+        b_ast->context = token->string;
+        b_ast->diagnostic_token = token;
+        b_ast->diagnostic_offset = b_ast->diagnostic_token->offset;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_make_binary_node(token, SIMPLEJS_AST_NODE_TYPE_PROPERTY_ACCESS, &identifier_ast, a_ast, b_ast), result, status);
     }
 
     *out = identifier_ast;
@@ -505,11 +518,11 @@ result:
         if (identifier_ast)
             simplejs_hook_mfree(identifier_ast);
 
-        if (global_ast)
-            simplejs_hook_mfree(global_ast);
+        if (a_ast)
+            simplejs_hook_mfree(a_ast);
 
-        if (property_ast)
-            simplejs_hook_mfree(property_ast);
+        if (b_ast)
+            simplejs_hook_mfree(b_ast);
     }
 
     return status;
@@ -688,7 +701,7 @@ static simplejs_status_t simplejs_nud(
         simplejs_check_token_expr_keyword(token, "this") ||
         simplejs_check_token_expr_keyword(token, "super"))
     {
-        status = simplejs_alloc_identifier_node(parser_ctx, out, token, false);
+        status = simplejs_alloc_identifier_node(parser_ctx, parser_ctx->current_ast_stack, out, token, false);
         goto result;
     }
 
@@ -923,7 +936,7 @@ simplejs_status_t simplejs_process_operator(
                 goto result;
             }
 
-            status = simplejs_alloc_identifier_node(parser_ctx, &right, prop, true);
+            status = simplejs_alloc_identifier_node(parser_ctx, parser_ctx->current_ast_stack, &right, prop, true);
 
             if (!SIMPLEJS_SUCCESS(status))
                 goto result;
@@ -957,12 +970,16 @@ simplejs_status_t simplejs_process_operator(
                 ")",
             };
 
+            uint32_t node_flags = (*left)->flags;
+
             status = simplejs_make_unary_node(operator_token, node_type, true, left, *left);
             if (!SIMPLEJS_SUCCESS(status))
                 goto result;
 
             simplejs_ast_node_t *function_call_ast = *left;
             simplejs_token_t *function_operator_token = NULL;
+
+            function_call_ast->flags = node_flags;
 
             while (true)
             {
