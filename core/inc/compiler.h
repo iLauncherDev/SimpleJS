@@ -1,5 +1,6 @@
 #pragma once
 #include "bytecode.h"
+#include "object.h"
 #include "parser.h"
 #include <simplejs/compiler.h>
 
@@ -38,7 +39,9 @@ typedef struct simplejs_compiler_instruction
 
     struct
     {
-        simplejs_ast_node_t *node;
+        void *data;
+        size_t data_size;
+
         uint32_t data_offset;
         uintptr_t label_id;
     } symbol;
@@ -58,6 +61,7 @@ typedef enum
     SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ,
     SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE,
     SIMPLEJS_COMPILER_REG_OPERATION_TYPE_DELETE,
+    SIMPLEJS_COMPILER_REG_OPERATION_TYPE_NEW,
 } simplejs_compiler_reg_operation_type_t;
 
 typedef struct simplejs_compiler_reg_info
@@ -68,7 +72,7 @@ typedef struct simplejs_compiler_reg_info
 
     bool is_sub_op, is_sub_assign, avoid_refetch;
     bool have_parent;
-    uint8_t reg_a, reg_b, reg_parent;
+    uint8_t reg_a, reg_b, reg_parent, reg_super;
 } simplejs_compiler_reg_info_t;
 
 struct simplejs_compiler_ctx

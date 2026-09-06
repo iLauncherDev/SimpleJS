@@ -48,6 +48,9 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_NUMBER);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_STRING);
 
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_THIS_REFERENCE);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_SUPER_REFERENCE);
+
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_LOCAL_REFERENCE);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_FUNCTION_REFERENCE);
@@ -58,6 +61,7 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_OP_ASSIGN);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_DELETE);
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_NEW);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND);
@@ -97,6 +101,8 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_EXPRESSION_PROPERTY_ACCESS);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_CODEBLOCK);
+
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_CLASSDECL);
 
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_VARDECL);
@@ -202,6 +208,8 @@ bool simplejs_get_scoped_output_alt(
 
     while (current_ast != NULL)
     {
+        simplejs_ast_node_t *parent_ast = current_ast->parent_node;
+
         bool will_quit = false;
         simplejs_ast_scope_context_t *scope_context = NULL;
 
@@ -211,6 +219,16 @@ bool simplejs_get_scoped_output_alt(
             scope_context = current_ast->context;
             break;
 
+        case SIMPLEJS_AST_NODE_TYPE_CLASSDECL:
+        {
+            simplejs_ast_var_context_t *var_context = current_ast->context;
+
+            scope_context = var_context->scope_context;
+
+            will_quit = true;
+            break;
+        }
+
         case SIMPLEJS_AST_NODE_TYPE_ROOT:
         case SIMPLEJS_AST_NODE_TYPE_FUNCDECL:
         {
@@ -218,7 +236,9 @@ bool simplejs_get_scoped_output_alt(
 
             scope_context = function_context->root_scope;
 
-            will_quit = true;
+            if (!parent_ast || parent_ast->type != SIMPLEJS_AST_NODE_TYPE_CLASSDECL)
+                will_quit = true;
+
             break;
         }
 
@@ -241,7 +261,7 @@ bool simplejs_get_scoped_output_alt(
         }
 
     skip_ast:
-        current_ast = current_ast->parent_node;
+        current_ast = parent_ast;
     }
 
     return false;
@@ -433,6 +453,7 @@ static simplejs_status_t simplejs_alloc_root_ast(simplejs_ast_node_t **out)
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_full_function_context(&function_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_ROOT, &ret), result, status);
 
+    function_context->ast_node = ret;
     ret->context = function_context;
 
     *out = ret;
@@ -490,7 +511,7 @@ static void simplejs_add_children_ast(simplejs_parser_ctx_t *parser_ctx, simplej
     simplejs_insert_children_ast_to_parent(parent, children);
 }
 
-static simplejs_status_t simplejs_add_function_ast(simplejs_parser_ctx_t *parser_ctx)
+static simplejs_status_t simplejs_add_function_ast(simplejs_parser_ctx_t *parser_ctx, uint32_t flags)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
@@ -500,6 +521,8 @@ static simplejs_status_t simplejs_add_function_ast(simplejs_parser_ctx_t *parser
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_full_function_context(&function_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_FUNCDECL, &function_ast), result, status);
+    function_context->ast_node = function_ast;
+    function_ast->flags |= flags;
 
     function_ast->diagnostic_token = parser_ctx->current_token;
 
@@ -768,7 +791,53 @@ result:
     return status;
 }
 
-static simplejs_status_t simplejs_add_var_ast(simplejs_parser_ctx_t *parser_ctx)
+static simplejs_status_t simplejs_add_class_ast(simplejs_parser_ctx_t *parser_ctx)
+{
+    simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
+    simplejs_ast_scope_context_t *current_scope_context = current_function_context->current_scope_stack;
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_ast_node_t *class_ast = NULL;
+    simplejs_ast_var_context_t *var_context = NULL;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_var_context(&var_context), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_scope_context(&var_context->scope_context), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_CLASSDECL, &class_ast), result, status);
+    var_context->ast_node = class_ast;
+
+    class_ast->diagnostic_token = parser_ctx->current_token;
+
+    class_ast->context = var_context;
+
+    var_context->index = current_function_context->local_var_count++;
+    simplejs_insert_tail_list(&current_scope_context->var_list_entry, &var_context->_scope_var_list_entry);
+
+    current_function_context->current_scope_stack = var_context->scope_context;
+    simplejs_insert_tail_list(&current_function_context->scope_stack, &var_context->scope_context->_function_scope_list_entry);
+
+    simplejs_add_children_ast(parser_ctx, class_ast);
+    simplejs_push_ast_to_stack(parser_ctx, class_ast);
+
+    parser_ctx->state = SIMPLEJS_PARSER_STATE_CLASSDECL_NAME;
+
+result:
+    if (!SIMPLEJS_SUCCESS(status))
+    {
+        if (var_context)
+        {
+            if (var_context->scope_context)
+                simplejs_hook_mfree(var_context->scope_context);
+
+            simplejs_hook_mfree(var_context);
+        }
+
+        if (class_ast)
+            simplejs_hook_mfree(class_ast);
+    }
+
+    return status;
+}
+
+static simplejs_status_t simplejs_add_var_ast(simplejs_parser_ctx_t *parser_ctx, uint32_t flags)
 {
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
     simplejs_ast_scope_context_t *current_scope_context = current_function_context->current_scope_stack;
@@ -778,6 +847,8 @@ static simplejs_status_t simplejs_add_var_ast(simplejs_parser_ctx_t *parser_ctx)
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_var_context(&var_context), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_VARDECL, &var_ast), result, status);
+    var_context->ast_node = var_ast;
+    var_ast->flags |= flags;
 
     var_ast->diagnostic_token = parser_ctx->current_token;
 
@@ -804,7 +875,7 @@ result:
     return status;
 }
 
-static simplejs_status_t simplejs_add_var_idle_ast(simplejs_parser_ctx_t *parser_ctx)
+static simplejs_status_t simplejs_add_var_idle_ast(simplejs_parser_ctx_t *parser_ctx, uint32_t flags)
 {
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
     simplejs_ast_scope_context_t *current_scope_context = current_function_context->current_scope_stack;
@@ -813,6 +884,7 @@ static simplejs_status_t simplejs_add_var_idle_ast(simplejs_parser_ctx_t *parser
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST, &var_ast), result, status);
 
+    var_ast->flags |= flags;
     var_ast->diagnostic_token = parser_ctx->current_token;
 
     simplejs_add_children_ast(parser_ctx, var_ast);
@@ -946,7 +1018,17 @@ void simplejs_free_ast_list(simplejs_ast_node_t *node)
 
     case SIMPLEJS_AST_NODE_TYPE_EXPRESSION:
 
+    case SIMPLEJS_AST_NODE_TYPE_CLASSDECL:
     case SIMPLEJS_AST_NODE_TYPE_VARDECL:
+        if (node->type == SIMPLEJS_AST_NODE_TYPE_CLASSDECL ||
+            node->type == SIMPLEJS_AST_NODE_TYPE_VARDECL)
+        {
+            simplejs_ast_var_context_t *var_context = node->context;
+
+            if (var_context->super_class_ast)
+                simplejs_free_ast_list(var_context->super_class_ast);
+        }
+
         if (node->context)
             simplejs_hook_mfree(node->context);
         break;
@@ -1131,7 +1213,7 @@ static simplejs_status_t check_var_expression(simplejs_parser_ctx_t *parser_ctx,
     if (simplejs_check_token_keyword(token, "var"))
     {
         simplejs_printf("vars to be done!\n");
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_idle_ast(parser_ctx), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_idle_ast(parser_ctx, 0), result, status);
         goto result;
     }
 
@@ -1256,7 +1338,7 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
 
             if (simplejs_check_token_keyword(token, "function"))
             {
-                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_function_ast(parser_ctx), result, status);
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_function_ast(parser_ctx, 0), result, status);
                 break;
             }
 
@@ -1266,10 +1348,16 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
                 break;
             }
 
+            if (simplejs_check_token_keyword(token, "class"))
+            {
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_class_ast(parser_ctx), result, status);
+                break;
+            }
+
             if (simplejs_check_token_keyword(token, "var"))
             {
                 simplejs_printf("vars to be done!\n");
-                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_idle_ast(parser_ctx), result, status);
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_idle_ast(parser_ctx, 0), result, status);
                 break;
             }
 
@@ -1486,12 +1574,102 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             break;
         }
 
+        case SIMPLEJS_PARSER_STATE_CLASSDECL_NAME:
+        {
+            simplejs_ast_var_context_t *var_context = parser_ctx->current_ast_stack->context;
+
+            if (!var_context->name &&
+                token->type != SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+            {
+                simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "expected identifier");
+                status = SIMPLEJS_STATUS_INVALID_TOKEN;
+                goto result;
+            }
+
+            var_context->name = token->string;
+            parser_ctx->state = SIMPLEJS_PARSER_STATE_CLASSDECL_FLAGS;
+            break;
+        }
+
+        case SIMPLEJS_PARSER_STATE_CLASSDECL_FLAGS:
+        {
+            simplejs_ast_var_context_t *var_context = parser_ctx->current_ast_stack->context;
+
+            if (var_context->parsing_extends)
+            {
+                if (!var_context->super_class_ast &&
+                    token->type != SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+                {
+                    simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "expected identifier");
+                    status = SIMPLEJS_STATUS_INVALID_TOKEN;
+                    goto result;
+                }
+                else if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
+                {
+                    simplejs_ast_node_t *prev_ast_stack = simplejs_get_list_entry_structure(parser_ctx->current_ast_stack->_stack_list_entry.prev);
+
+                    var_context->parsing_extends = false;
+
+                    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_identifier_node(parser_ctx, prev_ast_stack, &var_context->super_class_ast, token, false), result, status);
+                    break;
+                }
+            }
+            else
+            {
+                if (!var_context->super_class_ast &&
+                    simplejs_check_token_keyword(token, "extends"))
+                {
+                    var_context->parsing_extends = true;
+                    break;
+                }
+            }
+
+            if (simplejs_check_token_operator(token, "{"))
+            {
+                parser_ctx->state = SIMPLEJS_PARSER_STATE_CLASSDECL_IDLE;
+                break;
+            }
+
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
+        case SIMPLEJS_PARSER_STATE_CLASSDECL_IDLE:
+        {
+            if (simplejs_check_token_operator(token, ";"))
+                break;
+
+            if (simplejs_check_token_operator(token, "}"))
+            {
+                simplejs_leave_codeblock(parser_ctx);
+                simplejs_pop_ast_from_stack(parser_ctx);
+                break;
+            }
+
+            if (simplejs_check_token_keyword(token, "var"))
+            {
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_idle_ast(parser_ctx, SIMPLEJS_AST_NODE_FLAG_IS_CLASS_AST_NODE), result, status);
+                break;
+            }
+
+            if (simplejs_check_token_keyword(token, "function"))
+            {
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_function_ast(parser_ctx, SIMPLEJS_AST_NODE_FLAG_IS_CLASS_AST_NODE), result, status);
+                break;
+            }
+
+            simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
+            status = SIMPLEJS_STATUS_INVALID_TOKEN;
+            goto result;
+        }
+
         case SIMPLEJS_PARSER_STATE_VARDECL_IDLE:
         {
             if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER)
             {
                 current_token = current_token->prev;
-                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_ast(parser_ctx), result, status);
+                SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_var_ast(parser_ctx, parser_ctx->current_ast_stack->flags), result, status);
                 break;
             }
 
@@ -1503,7 +1681,6 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             }
 
             simplejs_present_parser_diagnostic(parser_ctx, parser_ctx->current_ast_stack, token, SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, "invalid token!");
-
             status = SIMPLEJS_STATUS_INVALID_TOKEN;
             goto result;
         }

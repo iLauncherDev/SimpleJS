@@ -31,6 +31,9 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_NUMBER,
     SIMPLEJS_AST_NODE_TYPE_STRING,
 
+    SIMPLEJS_AST_NODE_TYPE_THIS_REFERENCE,
+    SIMPLEJS_AST_NODE_TYPE_SUPER_REFERENCE,
+
     SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE,
     SIMPLEJS_AST_NODE_TYPE_LOCAL_REFERENCE,
     SIMPLEJS_AST_NODE_TYPE_FUNCTION_REFERENCE,
@@ -41,6 +44,7 @@ typedef enum
     SIMPLEJS_AST_NODE_TYPE_OP_ASSIGN,
 
     SIMPLEJS_AST_NODE_TYPE_DELETE,
+    SIMPLEJS_AST_NODE_TYPE_NEW,
 
     SIMPLEJS_AST_NODE_TYPE_LOGICAL_OR,
     SIMPLEJS_AST_NODE_TYPE_LOGICAL_AND,
@@ -81,6 +85,8 @@ typedef enum
 
     SIMPLEJS_AST_NODE_TYPE_CODEBLOCK,
 
+    SIMPLEJS_AST_NODE_TYPE_CLASSDECL,
+
     SIMPLEJS_AST_NODE_TYPE_VARDECL_LIST,
     SIMPLEJS_AST_NODE_TYPE_VARDECL,
     SIMPLEJS_AST_NODE_TYPE_FUNCDECL,
@@ -106,6 +112,10 @@ typedef enum
     SIMPLEJS_PARSER_STATE_FUNCDECL_BLOCK,
     SIMPLEJS_PARSER_STATE_FUNCDECL_END,
 
+    SIMPLEJS_PARSER_STATE_CLASSDECL_NAME,
+    SIMPLEJS_PARSER_STATE_CLASSDECL_FLAGS,
+    SIMPLEJS_PARSER_STATE_CLASSDECL_IDLE,
+
     SIMPLEJS_PARSER_STATE_VARDECL_IDLE,
     SIMPLEJS_PARSER_STATE_VARDECL_NAME,
     SIMPLEJS_PARSER_STATE_VARDECL_END,
@@ -130,6 +140,9 @@ typedef enum
     SIMPLEJS_PARSER_STATE_RETURN_EXPRESSION,
     SIMPLEJS_PARSER_STATE_RETURN_END,
 } simplejs_parser_state_t;
+
+#define SIMPLEJS_AST_NODE_FLAG_ASSIGN_FIRST (1 << 0)
+#define SIMPLEJS_AST_NODE_FLAG_IS_CLASS_AST_NODE (1 << 1)
 
 typedef struct simplejs_ast_node
 {
@@ -182,6 +195,8 @@ typedef struct simplejs_ast_function_context
 {
     bool _process_arg;
 
+    simplejs_ast_node_t *ast_node;
+
     simplejs_utf8_string_t *name;
 
     uint32_t local_var_count, local_arg_count;
@@ -201,6 +216,13 @@ typedef struct simplejs_ast_var_context
 {
     uint32_t index;
     simplejs_utf8_string_t *name;
+
+    simplejs_ast_node_t *ast_node;
+
+    simplejs_ast_node_t *super_class_ast;
+    simplejs_ast_scope_context_t *scope_context;
+
+    bool parsing_extends;
 
     simplejs_list_entry_t _scope_var_list_entry;
 } simplejs_ast_var_context_t;
@@ -231,6 +253,9 @@ struct simplejs_parser_ctx
 };
 
 typedef bool (*simplejs_get_scoped_callback_f)(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);
+
+simplejs_status_t simplejs_alloc_identifier_node(
+    simplejs_parser_ctx_t *parser_ctx, simplejs_ast_node_t *current_ast_stack, simplejs_ast_node_t **out, simplejs_token_t *token, bool is_property);
 
 bool simplejs_get_scoped_var_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);
 bool simplejs_get_scoped_label_callback(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);

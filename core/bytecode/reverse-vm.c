@@ -209,6 +209,9 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
     [SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_FREE_LOC_VAR] = simplejs_reverse_bytecode_opcode_free_loc_var,
 
+    [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_STD_FLAGS] = simplejs_reverse_bytecode_opcode_nop,
+    [SIMPLEJS_BYTECODE_OPCODE_CLEAR_VAR_STD_FLAGS] = simplejs_reverse_bytecode_opcode_nop,
+
     [SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_DELETE_VAR_PROP] = simplejs_reverse_bytecode_opcode_nop,
@@ -223,6 +226,11 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_reverse_bytecode_opcode_nop,
+
+    [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR] = simplejs_reverse_bytecode_opcode_nop,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR] = simplejs_reverse_bytecode_opcode_nop,
+
+    [SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR] = simplejs_reverse_bytecode_opcode_nop,
 
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL] = simplejs_reverse_bytecode_opcode_nop,

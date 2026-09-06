@@ -11,13 +11,13 @@ typedef struct simplejs_dynamic_object_property
 
 typedef struct simplejs_dynamic_object_raw
 {
+    uint32_t std_flags;
+
     simplejs_object_t *this_object;
 
     simplejs_dynamic_object_property_t prototype_property;
 
     simplejs_safe_list_t property_list;
-
-    bool read_only;
 } simplejs_dynamic_object_raw_t;
 
 simplejs_proxy_t *dynamic_object_proxy = NULL;
@@ -41,11 +41,37 @@ simplejs_status_t simplejs_dynamic_object_release(simplejs_proxy_context_t conte
 
         simplejs_hook_mfree(object_property);
 
-skip_property:
+    skip_property:
         current_property = next_property;
     }
 
     simplejs_hook_mfree(object);
+    return status;
+}
+
+simplejs_status_t simplejs_dynamic_object_set_std_flags(simplejs_proxy_context_t context, uint32_t std_flags)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_dynamic_object_raw_t *object = context.pointer;
+    if (object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
+        goto result;
+
+    object->std_flags |= std_flags;
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_dynamic_object_clear_std_flags(simplejs_proxy_context_t context, uint32_t std_flags)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_dynamic_object_raw_t *object = context.pointer;
+    if (object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
+        goto result;
+
+    object->std_flags &= ~std_flags;
+
+result:
     return status;
 }
 
@@ -153,8 +179,6 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
 
-    // printf("simplejs_dynamic_object_get_property_value: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = context.pointer;
 
@@ -166,7 +190,8 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
         simplejs_object_t *proto_object = proto_variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT ? proto_variable->value.object : NULL;
         uint16_t proto_object_value = proto_variable->value.object_value;
 
-        if (!proto_object)
+        if (!proto_object ||
+            proto_object == object->this_object)
         {
             simplejs_variable_t tmp_var;
             simplejs_variable_init_undefined(&tmp_var);
@@ -196,11 +221,15 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
 
-    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = context.pointer;
-    if (object->read_only)
+    if (object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
+    {
+        simplejs_printf("called simplejs_dynamic_object_delete_property on perma-lock mode!\n");
+        goto result;
+    }
+
+    if (object->std_flags & SIMPLEJS_PROXY_STD_FLAG_READ_ONLY)
     {
         simplejs_printf("called simplejs_dynamic_object_set_property_value on read-only mode!\n");
         goto result;
@@ -230,13 +259,17 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
 
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
 
-    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *object = context.pointer;
-    if (object->read_only)
+    if (object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
     {
-        simplejs_printf("called simplejs_dynamic_object_set_property_value on read-only mode!\n");
+        simplejs_printf("called simplejs_dynamic_object_delete_property on perma-lock mode!\n");
+        goto result;
+    }
+
+    if (object->std_flags & SIMPLEJS_PROXY_STD_FLAG_READ_ONLY)
+    {
+        simplejs_printf("called simplejs_dynamic_object_delete_property on read-only mode!\n");
         goto result;
     }
 
@@ -283,7 +316,7 @@ simplejs_status_t SIMPLEJS_API simplejs_builtin_create_dynamic_object(simplejs_o
 
     simplejs_dynamic_object_property_t *prototype_property = &dynamic_object->prototype_property;
     prototype_property->is_hardcoded = true;
-    prototype_property->property.name = "prototype";
+    prototype_property->property.name = SIMPLEJS_CLASS_PROTOTYPE_PROPERTY;
     simplejs_init_safe_list_entry(&prototype_property->safe_list_entry, prototype_property);
     simplejs_add_entry_to_safe_list(&dynamic_object->property_list, &prototype_property->safe_list_entry, true);
 
@@ -324,7 +357,10 @@ void SIMPLEJS_API simplejs_builtin_set_dynamic_object_read_only(simplejs_object_
 
     simplejs_dynamic_object_raw_t *dynamic_object = object->pointer;
 
-    dynamic_object->read_only = read_only;
+    if (read_only)
+        simplejs_object_set_std_flags(object, 0, SIMPLEJS_PROXY_STD_FLAG_READ_ONLY);
+    else
+        simplejs_object_clear_std_flags(object, 0, SIMPLEJS_PROXY_STD_FLAG_READ_ONLY);
 }
 
 simplejs_status_t simplejs_builtin_init_dynamic_object()
@@ -334,6 +370,9 @@ simplejs_status_t simplejs_builtin_init_dynamic_object()
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_proxy(&dynamic_object_proxy), result, status);
 
     simplejs_proxy_define_release_callback(dynamic_object_proxy, simplejs_dynamic_object_release);
+
+    simplejs_proxy_define_set_std_flags_callback(dynamic_object_proxy, simplejs_dynamic_object_set_std_flags);
+    simplejs_proxy_define_clear_std_flags_callback(dynamic_object_proxy, simplejs_dynamic_object_clear_std_flags);
 
     simplejs_proxy_define_lock_property_list_callback(dynamic_object_proxy, simplejs_dynamic_object_lock_property_list);
     simplejs_proxy_define_unlock_property_list_callback(dynamic_object_proxy, simplejs_dynamic_object_unlock_property_list);

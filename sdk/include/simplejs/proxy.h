@@ -2,6 +2,9 @@
 #include "default.h"
 #include "variable.h"
 
+#define SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK (1 << 0)
+#define SIMPLEJS_PROXY_STD_FLAG_READ_ONLY (1 << 1)
+
 typedef void simplejs_raw_object_t;
 typedef struct simplejs_proxy simplejs_proxy_t;
 
@@ -27,6 +30,9 @@ typedef struct simplejs_proxy_property_query
 // proxy function types
 typedef simplejs_status_t (*simplejs_proxy_release_f)(simplejs_proxy_context_t context);
 
+typedef simplejs_status_t (*simplejs_proxy_set_std_flags_f)(simplejs_proxy_context_t context, uint32_t std_flags);
+typedef simplejs_status_t (*simplejs_proxy_clear_std_flags_f)(simplejs_proxy_context_t context, uint32_t std_flags);
+
 typedef simplejs_status_t (*simplejs_proxy_lock_property_list_f)(simplejs_proxy_context_t context);
 typedef simplejs_status_t (*simplejs_proxy_unlock_property_list_f)(simplejs_proxy_context_t context);
 typedef simplejs_status_t (*simplejs_proxy_query_property_f)(simplejs_proxy_context_t context, simplejs_proxy_property_query_t *out);
@@ -49,6 +55,9 @@ void SIMPLEJS_API simplejs_delete_proxy_property_query(simplejs_proxy_property_q
 
 _simplejs_proxy_define_name_callback_decl(release);
 
+_simplejs_proxy_define_name_callback_decl(set_std_flags);
+_simplejs_proxy_define_name_callback_decl(clear_std_flags);
+
 _simplejs_proxy_define_name_callback_decl(lock_property_list);
 _simplejs_proxy_define_name_callback_decl(unlock_property_list);
 _simplejs_proxy_define_name_callback_decl(query_property);
@@ -60,6 +69,9 @@ _simplejs_proxy_define_name_callback_decl(delete_property);
 _simplejs_proxy_define_name_callback_decl(get_string);
 
 simplejs_status_t SIMPLEJS_API simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context);
+
+simplejs_status_t SIMPLEJS_API simplejs_proxy_set_std_flags(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, uint32_t std_flags);
+simplejs_status_t SIMPLEJS_API simplejs_proxy_clear_std_flags(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, uint32_t std_flags);
 
 simplejs_status_t SIMPLEJS_API simplejs_proxy_lock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context);
 simplejs_status_t SIMPLEJS_API simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context);

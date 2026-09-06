@@ -24,6 +24,9 @@ void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object);
 // object proxy functions
 simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object, uint16_t object_value);
 
+simplejs_status_t SIMPLEJS_API simplejs_object_set_std_flags(simplejs_object_t *object, uint16_t object_value, uint32_t std_flags);
+simplejs_status_t SIMPLEJS_API simplejs_object_clear_std_flags(simplejs_object_t *object, uint16_t object_value, uint32_t std_flags);
+
 simplejs_status_t SIMPLEJS_API simplejs_object_lock_property_list(simplejs_object_t *object, uint16_t object_value);
 simplejs_status_t SIMPLEJS_API simplejs_object_unlock_property_list(simplejs_object_t *object, uint16_t object_value);
 simplejs_status_t SIMPLEJS_API simplejs_object_query_property(simplejs_object_t *object, uint16_t object_value, simplejs_proxy_property_query_t *out);

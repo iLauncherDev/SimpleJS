@@ -47,6 +47,9 @@
 #define string_includes(str, chr) ((strchr(str, chr)) != NULL)
 #define memclr(p, s) memset(p, 0, s)
 
+#define SIMPLEJS_CLASS_CONSTRUCTOR_PROPERTY "constructor"
+#define SIMPLEJS_CLASS_PROTOTYPE_PROPERTY "prototype"
+
 #define CASE_TO_STRING(name) \
     case name:               \
         return #name

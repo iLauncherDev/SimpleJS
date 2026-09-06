@@ -9,6 +9,9 @@ struct simplejs_proxy
 {
     simplejs_proxy_release_f f_release;
 
+    simplejs_proxy_set_std_flags_f f_set_std_flags;
+    simplejs_proxy_clear_std_flags_f f_clear_std_flags;
+
     simplejs_proxy_lock_property_list_f f_lock_property_list;
     simplejs_proxy_unlock_property_list_f f_unlock_property_list;
     simplejs_proxy_query_property_f f_query_property;
