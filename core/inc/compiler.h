@@ -1,7 +1,9 @@
 #pragma once
 #include "bytecode.h"
+#include "object.h"
 #include "parser.h"
 #include <simplejs/compiler.h>
+#include <builtin_object/dynamic_object.h>
 
 typedef enum simplejs_compiler_instruction_type
 {
