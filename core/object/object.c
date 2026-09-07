@@ -1,5 +1,22 @@
 #include <object.h>
 
+static simplejs_pool_t *object_pool = NULL;
+
+simplejs_status_t simplejs_init_object()
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_create_pool(CACHE_LINE_SIZE, &object_pool), result, status);
+
+result:
+    return status;
+}
+
+void simplejs_uninit_object()
+{
+    simplejs_destroy_pool(object_pool);
+}
+
 // object functions
 simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *pointer, simplejs_proxy_t *proxy, simplejs_object_t **out)
 {
@@ -7,7 +24,7 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *poin
     SIMPLEJS_ASSERT(proxy != NULL);
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-    simplejs_object_t *ret = simplejs_hook_malloc(sizeof(*ret));
+    simplejs_object_t *ret = simplejs_pool_malloc(object_pool, sizeof(*ret));
     if (!ret)
     {
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
@@ -33,7 +50,7 @@ void SIMPLEJS_API simplejs_free_object(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    simplejs_hook_mfree(object);
+    simplejs_pool_mfree(object_pool, object);
 }
 
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object)
