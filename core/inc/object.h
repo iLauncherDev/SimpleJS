@@ -2,6 +2,7 @@
 #include "default.h"
 #include "number.h"
 #include <simplejs/object.h>
+#include <simplejs/lib/pool.h>
 
 #include <simplejs/lib/time.h>
 
@@ -25,12 +26,15 @@ struct simplejs_object
 {
     uint32_t flags;
 
-    simplejs_spinlock_t gc_lock;
     atomic_int reference_count;
     double modification_time;
+    simplejs_spinlock_t gc_lock;
 
     simplejs_raw_object_t *pointer;
     simplejs_proxy_t *proxy;
 
     simplejs_safe_list_entry_t gc_list_entry;
 };
+
+simplejs_status_t simplejs_init_object();
+void simplejs_uninit_object();
