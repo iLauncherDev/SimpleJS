@@ -51,7 +51,7 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
                 }
 
                 simplejs_remove_entry_from_safe_list(&simplejs_gc.object_list, &object->gc_list_entry, true);
-                simplejs_hook_mfree(object);
+                simplejs_free_object(object);
 
                 simplejs_printf("released object because it have no reference!\n");
 
