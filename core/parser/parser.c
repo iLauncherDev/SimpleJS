@@ -783,7 +783,8 @@ static simplejs_status_t simplejs_add_var_ast(simplejs_parser_ctx_t *parser_ctx)
 
     var_ast->context = var_context;
 
-    var_context->index = current_function_context->local_var_count++;
+    current_scope_context->local_var_count++;
+    var_context->index = current_function_context->current_local_var_slot_count++;
     simplejs_insert_tail_list(&current_scope_context->var_list_entry, &var_context->_scope_var_list_entry);
 
     simplejs_add_children_ast(parser_ctx, var_ast);
@@ -891,8 +892,14 @@ result:
 static void simplejs_leave_codeblock(simplejs_parser_ctx_t *parser_ctx)
 {
     simplejs_ast_function_context_t *current_function_context = parser_ctx->current_function_context_stack;
+    simplejs_ast_scope_context_t *current_scope_context = current_function_context->current_scope_stack;
 
-    simplejs_remove_entry_list(&current_function_context->current_scope_stack->_function_scope_list_entry);
+    if (current_function_context->local_var_slot_count < current_function_context->current_local_var_slot_count)
+        current_function_context->local_var_slot_count = current_function_context->current_local_var_slot_count;
+
+    current_function_context->current_local_var_slot_count -= current_scope_context->local_var_count;
+
+    simplejs_remove_entry_list(&current_scope_context->_function_scope_list_entry);
     current_function_context->current_scope_stack = simplejs_get_list_entry_structure(current_function_context->scope_stack.prev);
 }
 
@@ -1819,6 +1826,8 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
     skip_token:
         current_token = current_token->next;
     }
+
+    simplejs_leave_codeblock(parser_ctx);
 
     *out = parser_ctx;
 

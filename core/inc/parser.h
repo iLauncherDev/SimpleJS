@@ -168,7 +168,7 @@ typedef struct simplejs_ast_branch_context
 
 typedef struct simplejs_ast_scope_context
 {
-    uint32_t var_count;
+    uint32_t local_var_count;
 
     simplejs_list_entry_t function_list_entry;
     simplejs_list_entry_t arg_list_entry;
@@ -184,7 +184,8 @@ typedef struct simplejs_ast_function_context
 
     simplejs_utf8_string_t *name;
 
-    uint32_t local_var_count, local_arg_count;
+    uint32_t local_var_slot_count, local_arg_count;
+    uint32_t current_local_var_slot_count;
 
     simplejs_ast_scope_context_t *root_scope;
 
