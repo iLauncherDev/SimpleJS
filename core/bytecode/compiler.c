@@ -1484,7 +1484,7 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_ALLOC_VARS;
-    instruct_tmp.instruction.imm = function_context->local_var_count;
+    instruct_tmp.instruction.imm = function_context->local_var_slot_count;
     simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
     status = simplejs_compile_ast(compiler_ctx, ast_info, &function_node->children_list_entry);
