@@ -1488,10 +1488,10 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_ADD_STACK_VAR_SIZE;
-    instruct_tmp.instruction.imm = function_context->local_var_count;
+    instruct_tmp.instruction.imm = function_context->local_var_slot_count;
     simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
-    for (size_t i = 0; i < function_context->local_var_count; i++)
+    for (size_t i = 0; i < function_context->local_var_slot_count; i++)
     {
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_VAR;
@@ -1510,7 +1510,7 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
     instruct_tmp.symbol.label_id = ast_info.return_label_id;
     simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
-    for (size_t i = 0; i < function_context->local_var_count; i++)
+    for (size_t i = 0; i < function_context->local_var_slot_count; i++)
     {
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_FREE_LOC_VAR;
@@ -1520,7 +1520,7 @@ simplejs_status_t simplejs_compile_ast_function(simplejs_compiler_ctx_t *compile
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_ADD_STACK_VAR_SIZE;
-    instruct_tmp.instruction.imm = -function_context->local_var_count;
+    instruct_tmp.instruction.imm = -function_context->local_var_slot_count;
     simplejs_add_instruction(compiler_ctx, instruct_tmp);
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
