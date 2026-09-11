@@ -177,6 +177,8 @@ typedef struct simplejs_bytecode_instruction
 
 typedef enum
 {
+    SIMPLEJS_BYTECODE_VARIABLE_CLASS,
+
     SIMPLEJS_BYTECODE_VARIABLE_THIS,
     SIMPLEJS_BYTECODE_VARIABLE_SUPER,
 
