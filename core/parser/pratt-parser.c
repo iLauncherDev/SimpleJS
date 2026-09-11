@@ -447,6 +447,22 @@ simplejs_status_t simplejs_alloc_identifier_node(simplejs_parser_ctx_t *parser_c
         identifier_ast->diagnostic_token = token;
         identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
     }
+    else if (simplejs_check_token_expr_keyword(token, "this"))
+    {
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_THIS_REFERENCE, &identifier_ast), result, status);
+
+        identifier_ast->context = token->string;
+        identifier_ast->diagnostic_token = token;
+        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
+    }
+    else if (simplejs_check_token_expr_keyword(token, "super"))
+    {
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(SIMPLEJS_AST_NODE_TYPE_SUPER_REFERENCE, &identifier_ast), result, status);
+
+        identifier_ast->context = token->string;
+        identifier_ast->diagnostic_token = token;
+        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
+    }
     else if (is_local)
     {
         if (local_scoped.is_function)
@@ -668,7 +684,9 @@ static simplejs_status_t simplejs_nud(
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     if (token->type == SIMPLEJS_TOKEN_TYPE_IDENTIFIER ||
-        simplejs_check_token_expr_keyword(token, "globalThis"))
+        simplejs_check_token_expr_keyword(token, "globalThis") ||
+        simplejs_check_token_expr_keyword(token, "this") ||
+        simplejs_check_token_expr_keyword(token, "super"))
     {
         status = simplejs_alloc_identifier_node(parser_ctx, out, token, false);
         goto result;
