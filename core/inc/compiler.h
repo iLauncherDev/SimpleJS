@@ -71,7 +71,7 @@ typedef struct simplejs_compiler_reg_info
 
     bool is_sub_op, is_sub_assign, avoid_refetch;
     bool have_parent;
-    uint8_t reg_a, reg_b, reg_parent;
+    uint8_t reg_a, reg_b, reg_parent, reg_super;
 } simplejs_compiler_reg_info_t;
 
 struct simplejs_compiler_ctx

@@ -34,6 +34,7 @@ char *expr_keywords_list_string[] = {
     "typeof", "delete",
     "true", "false",
     "null", "undefined",
+    "this", "super",
     "globalThis"};
 
 char *composite_list_string[] = {
