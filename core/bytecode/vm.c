@@ -543,17 +543,26 @@ result:
 simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    uint32_t flags = instruction->imm;
+
+    uint32_t reg_out = flags & 0x0F;
+    uint32_t reg_out_object_level = (flags >> 4) & 0x0F;
+
+    uintptr_t has_out_object_level = -!!(flags & SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP_FLAG_HAS_OUT_OBJECT_LEVEL);
+
     simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
     simplejs_object_t *object = variable->value.object;
     uint16_t object_value = variable->value.object_value;
 
     simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
 
-    simplejs_variable_t *output = &vm->state.variables[instruction->imm & 0x0F];
+    simplejs_variable_t *output = &vm->state.variables[reg_out];
+    simplejs_variable_t *output_object_level = (void *)((uintptr_t)&vm->state.variables[reg_out_object_level] & has_out_object_level);
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_std_object_check(vm, variable), result, status);
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(object, object_value, property, output), default_result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(object, object_value, property, output, output_object_level), default_result, status);
 
 default_result:
     if (!SIMPLEJS_SUCCESS(status))

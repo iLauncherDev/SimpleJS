@@ -39,7 +39,7 @@ typedef simplejs_status_t (*simplejs_proxy_lock_property_list_f)(simplejs_proxy_
 typedef simplejs_status_t (*simplejs_proxy_unlock_property_list_f)(simplejs_proxy_context_t context);
 typedef simplejs_status_t (*simplejs_proxy_query_property_f)(simplejs_proxy_context_t context, simplejs_proxy_property_query_t *out);
 
-typedef simplejs_status_t (*simplejs_proxy_get_property_value_f)(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out);
+typedef simplejs_status_t (*simplejs_proxy_get_property_value_f)(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out, simplejs_variable_t *out_object_level);
 typedef simplejs_status_t (*simplejs_proxy_set_property_value_f)(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in);
 
 typedef simplejs_status_t (*simplejs_proxy_delete_property_f)(simplejs_proxy_context_t context, simplejs_variable_t *property);
@@ -79,7 +79,7 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_lock_property_list(simplejs_proxy_
 simplejs_status_t SIMPLEJS_API simplejs_proxy_unlock_property_list(simplejs_proxy_t *proxy, simplejs_proxy_context_t context);
 simplejs_status_t SIMPLEJS_API simplejs_proxy_query_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_proxy_property_query_t *out);
 
-simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out);
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out, simplejs_variable_t *out_object_level);
 simplejs_status_t SIMPLEJS_API simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in);
 simplejs_status_t SIMPLEJS_API simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property);
 
