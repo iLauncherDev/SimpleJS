@@ -740,6 +740,44 @@ result:
     return status;
 }
 
+simplejs_status_t simplejs_bytecode_opcode_create_obj_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t tmp_out = {.type = SIMPLEJS_VARIABLE_TYPE_OBJECT};
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *argument_variable = &vm->state.variables[instruction->reg_2];
+
+    uint32_t flags = instruction->imm;
+    uint32_t type = flags & SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR_MASK_OBJECT_TYPE;
+
+    if (flags & SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR_FLAG_IGNORE_ARGUMENT)
+        argument_variable = NULL;
+
+    switch (type)
+    {
+    case SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR_TYPE_DYNAMIC_OBJECT:
+        if (SIMPLEJS_SUCCESS(simplejs_builtin_create_dynamic_object((simplejs_object_t **)&tmp_out.value.object)))
+        {
+            if (argument_variable)
+                simplejs_builtin_set_dynamic_object_prototype(tmp_out.value.object, argument_variable);
+        }
+
+        break;
+
+    default:
+        status = SIMPLEJS_STATUS_INVALID_PARAMETER;
+        goto result;
+    }
+
+    simplejs_variable_assign(out, &tmp_out);
+    simplejs_gc_add_object(tmp_out.value.object);
+
+result:
+    return status;
+}
+
 simplejs_status_t simplejs_bytecode_opcode_set_var_undefined(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -1181,6 +1219,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_get_func_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_set_func_arg_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR] = simplejs_bytecode_opcode_create_obj_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED] = simplejs_bytecode_opcode_set_var_undefined,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL] = simplejs_bytecode_opcode_set_var_null,
