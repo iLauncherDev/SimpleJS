@@ -3,6 +3,8 @@
 #include "object.h"
 #include "compiler.h"
 #include <simplejs/vm.h>
+#include <simplejs/mm/gc.h>
+#include <simplejs/builtin_object/dynamic_object.h>
 
 typedef struct simplejs_vm_context
 {
