@@ -1675,6 +1675,10 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         simplejs_printf("init_hash_string %d", instruction.imm_signed);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR:
+        simplejs_printf("create_obj_var v%u, v%u, %u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED:
         simplejs_printf("set_var_undefined v%u", instruction.reg_1);
         break;
