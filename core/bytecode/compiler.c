@@ -135,9 +135,8 @@ bool simplejs_reuse_symbol(simplejs_compiler_ctx_t *compiler_ctx, uint8_t opcode
     simplejs_list_entry_t *end_instruction = &compiler_ctx->instruction_list;
     simplejs_list_entry_t *current_instruction = end_instruction->next;
 
-    simplejs_ast_node_t *left = out->symbol.node;
-
-    SIMPLEJS_ASSERT(left != NULL);
+    void *left_data = out->symbol.data;
+    size_t left_data_size = out->symbol.data_size;
 
     while (current_instruction != end_instruction)
     {
@@ -147,47 +146,20 @@ bool simplejs_reuse_symbol(simplejs_compiler_ctx_t *compiler_ctx, uint8_t opcode
             goto skip_instruction;
 
         uint32_t right_data_offset = compiler_instruction->symbol.data_offset;
-        simplejs_ast_node_t *right = compiler_instruction->symbol.node;
 
-        SIMPLEJS_ASSERT(right != NULL);
+        void *right_data = compiler_instruction->symbol.data;
+        size_t right_data_size = compiler_instruction->symbol.data_size;
 
-        switch (left->type)
+        if (left_data_size == right_data_size &&
+            !memcmp(left_data, right_data, right_data_size))
         {
-        case SIMPLEJS_AST_NODE_TYPE_STRING:
-        case SIMPLEJS_AST_NODE_TYPE_GLOBAL_REFERENCE:
-        case SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE:
-        {
-            simplejs_utf8_string_t *left_string = left->context;
-            simplejs_utf8_string_t *right_string = right->context;
+            out->symbol.can_free_data = false;
 
-            if (!strcmp(left_string->buffer, right_string->buffer))
-            {
-                out->symbol.node = right;
-                out->symbol.data_offset = right_data_offset;
-                return true;
-            }
+            out->symbol.data = right_data;
+            out->symbol.data_size = right_data_size;
+            out->symbol.data_offset = right_data_offset;
 
-            break;
-        }
-
-        case SIMPLEJS_AST_NODE_TYPE_NUMBER:
-        {
-            simplejs_number_t *left_number = left->context;
-            simplejs_number_t *right_number = right->context;
-
-            if (!memcmp(left_number, right_number, sizeof(*left_number)))
-            {
-                out->symbol.node = right;
-                out->symbol.data_offset = right_data_offset;
-                return true;
-            }
-
-            break;
-        }
-
-        default:
-            SIMPLEJS_ASSERT("cannot reuse symbol" && false);
-            break;
+            return true;
         }
 
     skip_instruction:
@@ -486,17 +458,20 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
     case SIMPLEJS_AST_NODE_TYPE_NUMBER:
     {
+        simplejs_number_t *number = side->context;
+
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
 
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
 
-        instruct_tmp.symbol.node = side;
+        instruct_tmp.symbol.data = number;
+        instruct_tmp.symbol.data_size = SIMPLEJS_NUMBER_SIZE;
         instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
 
         if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER, &instruct_tmp))
-            compiler_ctx->data_offset += SIMPLEJS_NUMBER_SIZE;
+            compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
@@ -514,11 +489,12 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
 
-        instruct_tmp.symbol.node = side;
+        instruct_tmp.symbol.data = string->buffer;
+        instruct_tmp.symbol.data_size = string->valid_size + 1;
         instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
 
         if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
-            compiler_ctx->data_offset += string->valid_size + 1;
+            compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
         break;
@@ -1977,7 +1953,7 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
                     goto repeat_compile_loop;
                 }
 
-                simplejs_number_t *number = compiler_instruction->symbol.node->context;
+                simplejs_number_t *number = compiler_instruction->symbol.data;
 
                 instruction->imm_signed = relative_offset;
 
@@ -2021,11 +1997,12 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
                     goto repeat_compile_loop;
                 }
 
-                simplejs_utf8_string_t *string = compiler_instruction->symbol.node->context;
+                char *string = compiler_instruction->symbol.data;
+                size_t string_size = compiler_instruction->symbol.data_size;
 
                 instruction->imm_signed = relative_offset;
 
-                memcpy(&buffer[absolute_offset], string->buffer, string->valid_size);
+                memcpy(&buffer[absolute_offset], string, string_size);
                 break;
             }
             }
@@ -2086,6 +2063,12 @@ void SIMPLEJS_API simplejs_free_compiler_ctx(simplejs_compiler_ctx_t *compiler_c
     {
         simplejs_list_entry_t *next_instruction = current_instruction->next;
         simplejs_compiler_instruction_t *compiler_instruction = simplejs_get_list_entry_structure(current_instruction);
+
+        if (compiler_instruction->symbol.can_free_data)
+        {
+            if (compiler_instruction->symbol.data)
+                simplejs_hook_mfree(compiler_instruction->symbol.data);
+        }
 
         simplejs_hook_mfree(compiler_instruction);
 
