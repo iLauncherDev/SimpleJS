@@ -229,6 +229,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
 
     [SIMPLEJS_BYTECODE_OPCODE_INIT_HASH_STRING] = simplejs_reverse_bytecode_opcode_nop,
 
+    [SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR] = simplejs_reverse_bytecode_opcode_nop,
+
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER] = simplejs_reverse_bytecode_opcode_nop,
