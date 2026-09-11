@@ -118,6 +118,24 @@ simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object
     return simplejs_proxy_release(object->proxy, context);
 }
 
+simplejs_status_t SIMPLEJS_API simplejs_object_set_std_flags(simplejs_object_t *object, uint16_t object_value, uint32_t std_flags)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    simplejs_proxy_context_t context = simplejs_object_init_proxy_context(object, object_value);
+
+    return simplejs_proxy_set_std_flags(object->proxy, context, std_flags);
+}
+
+simplejs_status_t SIMPLEJS_API simplejs_object_clear_std_flags(simplejs_object_t *object, uint16_t object_value, uint32_t std_flags)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    simplejs_proxy_context_t context = simplejs_object_init_proxy_context(object, object_value);
+
+    return simplejs_proxy_clear_std_flags(object->proxy, context, std_flags);
+}
+
 simplejs_status_t SIMPLEJS_API simplejs_object_lock_property_list(simplejs_object_t *object, uint16_t object_value)
 {
     SIMPLEJS_ASSERT(object != NULL);

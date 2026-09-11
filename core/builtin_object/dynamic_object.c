@@ -43,11 +43,37 @@ simplejs_status_t simplejs_dynamic_object_release(simplejs_proxy_context_t conte
 
         simplejs_hook_mfree(object_property);
 
-skip_property:
+    skip_property:
         current_property = next_property;
     }
 
     simplejs_hook_mfree(dynamic_object);
+    return status;
+}
+
+simplejs_status_t simplejs_dynamic_object_set_std_flags(simplejs_proxy_context_t context, uint32_t std_flags)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
+    if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
+        goto result;
+
+    dynamic_object->std_flags |= std_flags;
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_dynamic_object_clear_std_flags(simplejs_proxy_context_t context, uint32_t std_flags)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
+    if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
+        goto result;
+
+    dynamic_object->std_flags &= ~std_flags;
+
+result:
     return status;
 }
 
@@ -183,7 +209,13 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
-    if (dynamic_object->read_only)
+    if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
+    {
+        simplejs_printf("called simplejs_dynamic_object_set_property_value on perma-lock mode!\n");
+        goto result;
+    }
+
+    if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_READ_ONLY)
     {
         simplejs_printf("called simplejs_dynamic_object_set_property_value on read-only mode!\n");
         goto result;
@@ -216,10 +248,16 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
     // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-    simplejs_dynamic_object_raw_t *object = context.pointer;
-    if (object->read_only)
+    simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
+    if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK)
     {
-        simplejs_printf("called simplejs_dynamic_object_set_property_value on read-only mode!\n");
+        simplejs_printf("called simplejs_dynamic_object_delete_property on perma-lock mode!\n");
+        goto result;
+    }
+
+    if (dynamic_object->std_flags & SIMPLEJS_PROXY_STD_FLAG_READ_ONLY)
+    {
+        simplejs_printf("called simplejs_dynamic_object_delete_property on read-only mode!\n");
         goto result;
     }
 
@@ -233,7 +271,7 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
     if (object_property->is_hardcoded)
         goto result;
 
-    simplejs_remove_entry_from_safe_list(&object->property_list, &object_property->safe_list_entry, true);
+    simplejs_remove_entry_from_safe_list(&dynamic_object->property_list, &object_property->safe_list_entry, true);
 
     simplejs_variable_dereference(&object_property->property.value);
     simplejs_hook_mfree(object_property);
@@ -315,7 +353,10 @@ void SIMPLEJS_API simplejs_builtin_set_dynamic_object_read_only(simplejs_object_
 
     simplejs_dynamic_object_raw_t *dynamic_object = object->pointer;
 
-    dynamic_object->read_only = read_only;
+    if (read_only)
+        simplejs_object_set_std_flags(object, 0, SIMPLEJS_PROXY_STD_FLAG_READ_ONLY);
+    else
+        simplejs_object_clear_std_flags(object, 0, SIMPLEJS_PROXY_STD_FLAG_READ_ONLY);
 }
 
 simplejs_status_t simplejs_builtin_init_dynamic_object()
@@ -325,6 +366,9 @@ simplejs_status_t simplejs_builtin_init_dynamic_object()
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_proxy(&dynamic_object_proxy), result, status);
 
     simplejs_proxy_define_release_callback(dynamic_object_proxy, simplejs_dynamic_object_release);
+
+    simplejs_proxy_define_set_std_flags_callback(dynamic_object_proxy, simplejs_dynamic_object_set_std_flags);
+    simplejs_proxy_define_clear_std_flags_callback(dynamic_object_proxy, simplejs_dynamic_object_clear_std_flags);
 
     simplejs_proxy_define_lock_property_list_callback(dynamic_object_proxy, simplejs_dynamic_object_lock_property_list);
     simplejs_proxy_define_unlock_property_list_callback(dynamic_object_proxy, simplejs_dynamic_object_unlock_property_list);
