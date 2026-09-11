@@ -356,19 +356,78 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, reference), result, status);
 
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+        uint8_t obj_reg = SIMPLEJS_BYTECODE_VARIABLE_CLASS;
+        uint8_t prototype_reg = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
+        uint8_t prop_reg = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
 
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR;
-        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_THIS;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        if (reg_info.operation_type != SIMPLEJS_COMPILER_REG_OPERATION_TYPE_NEW)
+        {
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
 
-        memclr(&instruct_tmp, sizeof(instruct_tmp));
-        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR;
+            instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_THIS;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_SUPER_VAR;
-        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_SUPER;
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_SUPER_VAR;
+            instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_SUPER;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        }
+        else
+        {
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_SUPER_VAR;
+            instruct_tmp.instruction.reg_1 = prototype_reg;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR;
+            instruct_tmp.instruction.reg_1 = obj_reg;
+            instruct_tmp.instruction.reg_2 = prototype_reg;
+            instruct_tmp.instruction.imm = SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR_TYPE_DYNAMIC_OBJECT;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+            instruct_tmp.instruction.reg_1 = prop_reg;
+
+            instruct_tmp.symbol.data = SIMPLEJS_CLASS_CONSTRUCTOR_PROPERTY;
+            instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
+            instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
+
+            if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
+                compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR;
+            instruct_tmp.instruction.reg_1 = obj_reg;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR;
+            instruct_tmp.instruction.reg_1 = obj_reg;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP;
+            instruct_tmp.instruction.reg_1 = obj_reg;
+            instruct_tmp.instruction.reg_2 = prop_reg;
+            instruct_tmp.instruction.imm = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        }
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.compiler_debug = compiler_debug;
@@ -376,6 +435,23 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_CALL;
         instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        if (reg_info.operation_type == SIMPLEJS_COMPILER_REG_OPERATION_TYPE_NEW)
+        {
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR;
+            instruct_tmp.instruction.reg_1 = obj_reg;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_RETURN_VAR;
+            instruct_tmp.instruction.reg_1 = obj_reg;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        }
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
@@ -1076,6 +1152,26 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE;
+        tmp_reg_info.reg_a = reg_info.reg_a;
+        tmp_reg_info.reg_b = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_NEW:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 1);
+
+        simplejs_compiler_debug_t *compiler_debug = parent_debug;
+
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+
+        simplejs_compiler_reg_info_t tmp_reg_info;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_NEW;
         tmp_reg_info.reg_a = reg_info.reg_a;
         tmp_reg_info.reg_b = reg_info.reg_a;
 
