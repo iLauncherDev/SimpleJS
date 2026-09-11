@@ -716,6 +716,18 @@ static simplejs_status_t simplejs_nud(
         goto result;
     }
 
+    if (simplejs_check_token_expr_keyword(token, "new"))
+    {
+        simplejs_ast_node_t *right;
+
+        status = simplejs_parse_expression(parser_ctx, start_token, &right, 120, end_operators, end_operators_size);
+        if (!SIMPLEJS_SUCCESS(status))
+            goto result;
+
+        status = simplejs_make_unary_node(token, SIMPLEJS_AST_NODE_TYPE_NEW, false, out, right);
+        goto result;
+    }
+
     if (simplejs_check_token_expr_keyword(token, "delete"))
     {
         simplejs_ast_node_t *right;
