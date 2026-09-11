@@ -20,6 +20,7 @@
 #include "lib/s_string.h"
 
 #define SIMPLEJS_CLASS_PROTOTYPE_PROPERTY "prototype"
+#define SIMPLEJS_CLASS_CONSTRUCTOR_PROPERTY "constructor"
 
 #define FUNC_IS_ON_STRING(name, vector)                               \
     bool name(char *string)                                           \
