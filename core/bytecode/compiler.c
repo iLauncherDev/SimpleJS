@@ -1598,11 +1598,21 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         simplejs_printf("free_loc_var %u", instruction.imm);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_STD_FLAGS:
+        simplejs_printf("set_var_std_flags v%u, %u", instruction.reg_1, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_CLEAR_VAR_STD_FLAGS:
+        simplejs_printf("clear_var_std_flags v%u, %u", instruction.reg_1, instruction.imm);
+        break;
+
     case SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP:
         simplejs_printf("get_var_prop v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
         break;
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP:
         simplejs_printf("set_var_prop v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_DELETE_VAR_PROP:
+        simplejs_printf("delete_var_prop v%u, v%u", instruction.reg_1, instruction.reg_2);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_GET_GLOBAL_VAR:
