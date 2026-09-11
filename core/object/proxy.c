@@ -136,7 +136,7 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_query_property(simplejs_proxy_t *p
     return status;
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out, simplejs_variable_t *out_object_level)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
@@ -146,7 +146,7 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_
     SIMPLEJS_ASSERT(property != NULL);
     SIMPLEJS_ASSERT(out != NULL);
 
-    simplejs_proxy_call_if_exists(proxy->f_get_property_value, status, context, property, out);
+    simplejs_proxy_call_if_exists(proxy->f_get_property_value, status, context, property, out, out_object_level);
 
     return status;
 }
