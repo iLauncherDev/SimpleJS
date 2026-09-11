@@ -220,7 +220,10 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
     simplejs_compiler_instruction_t instruct_tmp = {0};
     if (!reg_info.have_parent)
+    {
         reg_info.reg_parent = reg_info.reg_a;
+        reg_info.reg_super = SIMPLEJS_BYTECODE_VARIABLE_SUPER;
+    }
 
     switch (side->type)
     {
@@ -333,9 +336,17 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_VAR;
             instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_THIS;
             SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+            memclr(&instruct_tmp, sizeof(instruct_tmp));
+            simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_VAR;
+            instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_SUPER;
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
         }
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.reg_super = SIMPLEJS_BYTECODE_VARIABLE_SUPER;
         tmp_reg_info.reg_parent = SIMPLEJS_BYTECODE_VARIABLE_THIS;
         tmp_reg_info.have_parent = true;
 
@@ -344,6 +355,20 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         tmp_reg_info.reg_b = SIMPLEJS_BYTECODE_VARIABLE_FUNCTION;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, reference), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR;
+        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_THIS;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_debug(instruct_tmp.compiler_debug, reference, compiler_debug, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_CALL_SUPER_VAR;
+        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_SUPER;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.compiler_debug = compiler_debug;
@@ -382,16 +407,6 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         compiler_debug->flags |= SIMPLEJS_BYTECODE_DEBUG_INFO_HINT_RIGHT_FLAG;
 
         memclr(&tmp_reg_info, sizeof(tmp_reg_info));
-        tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
-
-        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
-        tmp_reg_info.reg_a = reg_info.reg_parent;
-        tmp_reg_info.reg_b = reg_info.reg_parent;
-
-        if (!reg_info.avoid_refetch)
-            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
-
-        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
         tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_RIGHT_FLAG;
 
         tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
@@ -400,11 +415,54 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, right), result, status);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SAVE_VAR;
+        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.debug_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
+
+        tmp_reg_info.have_parent = reg_info.have_parent;
+        tmp_reg_info.reg_parent = reg_info.reg_parent;
+        tmp_reg_info.reg_super = reg_info.reg_super;
+
+        uint32_t parent_reg = reg_info.reg_a;
+        if (left->type != SIMPLEJS_AST_NODE_TYPE_THIS_REFERENCE &&
+            left->type != SIMPLEJS_AST_NODE_TYPE_SUPER_REFERENCE)
+            parent_reg = reg_info.reg_parent;
+
+        tmp_reg_info.reg_a = parent_reg;
+        tmp_reg_info.reg_b = parent_reg;
+
+        if (!reg_info.avoid_refetch)
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_RESTORE_VAR;
+        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_VAR;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_super;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
         instruct_tmp.compiler_debug = compiler_debug;
 
-        instruct_tmp.instruction.reg_1 = reg_info.reg_parent;
+        instruct_tmp.instruction.reg_1 = parent_reg;
         instruct_tmp.instruction.reg_2 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
         instruct_tmp.instruction.imm = reg_info.reg_b;
+
+        instruct_tmp.instruction.imm |= (uint32_t)(reg_info.reg_super << 4) | SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP_FLAG_HAS_OUT_OBJECT_LEVEL;
 
         switch (reg_info.operation_type)
         {
@@ -427,6 +485,74 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         }
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_THIS_REFERENCE:
+    {
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_MOV_VAR;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_parent;
+        instruct_tmp.instruction.reg_2 = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_SUPER_REFERENCE:
+    {
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_parent;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_SUPER_VAR;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+        instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+
+        instruct_tmp.symbol.data = SIMPLEJS_CLASS_PROTOTYPE_PROPERTY;
+        instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
+        instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
+
+        if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
+            compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+        instruct_tmp.instruction.reg_2 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
+        instruct_tmp.instruction.imm = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
         break;
     }
 
@@ -1643,6 +1769,20 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         break;
     case SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR:
         simplejs_printf("set_func_arg_var %u, v%u", instruction.imm, instruction.reg_1);
+        break;
+
+    case SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR:
+        simplejs_printf("get_func_this_var v%u", instruction.reg_1);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR:
+        simplejs_printf("set_call_this_var v%u", instruction.reg_1);
+        break;
+
+    case SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_SUPER_VAR:
+        simplejs_printf("get_func_super_var v%u", instruction.reg_1);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SET_CALL_SUPER_VAR:
+        simplejs_printf("set_call_super_var v%u", instruction.reg_1);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_CREATE_OBJ_VAR:
