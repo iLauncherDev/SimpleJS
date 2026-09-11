@@ -148,7 +148,8 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
         simplejs_object_t *proto_object = proto_variable->type == SIMPLEJS_VARIABLE_TYPE_OBJECT ? proto_variable->value.object : NULL;
         uint16_t proto_object_value = proto_variable->value.object_value;
 
-        if (!proto_object)
+        if (!proto_object ||
+            proto_object == context.object)
         {
             simplejs_variable_t tmp_var;
             simplejs_variable_init_undefined(&tmp_var);
@@ -249,6 +250,18 @@ simplejs_status_t simplejs_dynamic_object_get_string(simplejs_proxy_context_t co
     return SIMPLEJS_STATUS_SUCCESS;
 }
 
+static void init_hardcoded_property(simplejs_dynamic_object_raw_t *dynamic_object, simplejs_dynamic_object_property_t *hard_property, char *name)
+{
+    SIMPLEJS_ASSERT(dynamic_object != NULL);
+    SIMPLEJS_ASSERT(name != NULL);
+    SIMPLEJS_ASSERT(hard_property != NULL);
+
+    hard_property->is_hardcoded = true;
+    hard_property->property.name = name;
+    simplejs_init_safe_list_entry(&hard_property->safe_list_entry, hard_property);
+    simplejs_add_entry_to_safe_list(&dynamic_object->property_list, &hard_property->safe_list_entry, true);
+}
+
 simplejs_status_t SIMPLEJS_API simplejs_builtin_create_dynamic_object(simplejs_object_t **out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -265,14 +278,10 @@ simplejs_status_t SIMPLEJS_API simplejs_builtin_create_dynamic_object(simplejs_o
     simplejs_init_safe_list(&dynamic_object->property_list, dynamic_object, 0);
 
     simplejs_dynamic_object_property_t *prototype_property = &dynamic_object->prototype_property;
-    prototype_property->is_hardcoded = true;
-    prototype_property->property.name = "prototype";
-    simplejs_init_safe_list_entry(&prototype_property->safe_list_entry, prototype_property);
-    simplejs_add_entry_to_safe_list(&dynamic_object->property_list, &prototype_property->safe_list_entry, true);
+
+    init_hardcoded_property(dynamic_object, prototype_property, SIMPLEJS_CLASS_PROTOTYPE_PROPERTY);
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_object(dynamic_object, dynamic_object_proxy, &object), result, status);
-
-    dynamic_object->this_object = object;
 
     *out = object;
 result:
