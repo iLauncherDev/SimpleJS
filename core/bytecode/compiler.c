@@ -1606,7 +1606,12 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP:
-        simplejs_printf("get_var_prop v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
+        simplejs_printf("get_var_prop v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm & 0x0F);
+
+        if (instruction.imm & SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP_FLAG_HAS_OUT_OBJECT_LEVEL)
+        {
+            simplejs_printf(", v%u", (instruction.imm >> 4) & 0x0F);
+        }
         break;
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP:
         simplejs_printf("set_var_prop v%u, v%u, v%u", instruction.reg_1, instruction.reg_2, instruction.imm);
