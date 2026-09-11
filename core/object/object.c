@@ -163,13 +163,13 @@ simplejs_status_t SIMPLEJS_API simplejs_object_query_property(simplejs_object_t 
     return simplejs_proxy_query_property(object->proxy, context, out);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_get_property_value(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property, simplejs_variable_t *out)
+simplejs_status_t SIMPLEJS_API simplejs_object_get_property_value(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property, simplejs_variable_t *out, simplejs_variable_t *out_object_level)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
     simplejs_proxy_context_t context = simplejs_object_init_proxy_context(object, object_value);
 
-    return simplejs_proxy_get_property_value(object->proxy, context, property, out);
+    return simplejs_proxy_get_property_value(object->proxy, context, property, out, out_object_level);
 }
 
 simplejs_status_t SIMPLEJS_API simplejs_object_set_property_value(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property, simplejs_variable_t *in)
