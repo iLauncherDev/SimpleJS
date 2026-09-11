@@ -484,17 +484,9 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+static simplejs_status_t simplejs_std_object_check(simplejs_vm_t *vm, simplejs_variable_t *variable)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
-
-    simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
-    simplejs_object_t *variable_object = variable->value.object;
-    uint16_t variable_object_value = variable->value.object_value;
-
-    simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
-
-    simplejs_variable_t *output = &vm->state.variables[instruction->imm & 0x0F];
 
     if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT ||
         variable->value.object == NULL)
@@ -508,7 +500,60 @@ simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simpl
         goto result;
     }
 
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(variable_object, variable_object_value, property, output), default_result, status);
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_var_std_flags(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
+    simplejs_object_t *object = variable->value.object;
+    uint16_t object_value = variable->value.object_value;
+
+    uint32_t std_flags = instruction->imm;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_std_object_check(vm, variable), result, status);
+
+    simplejs_object_set_std_flags(object, object_value, std_flags);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_clear_var_std_flags(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
+    simplejs_object_t *object = variable->value.object;
+    uint16_t object_value = variable->value.object_value;
+
+    uint32_t std_flags = instruction->imm;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_std_object_check(vm, variable), result, status);
+
+    simplejs_object_clear_std_flags(object, object_value, std_flags);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_get_var_prop(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+    simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
+    simplejs_object_t *object = variable->value.object;
+    uint16_t object_value = variable->value.object_value;
+
+    simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
+
+    simplejs_variable_t *output = &vm->state.variables[instruction->imm & 0x0F];
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_std_object_check(vm, variable), result, status);
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_get_property_value(object, object_value, property, output), default_result, status);
 
 default_result:
     if (!SIMPLEJS_SUCCESS(status))
@@ -528,26 +573,16 @@ simplejs_status_t simplejs_bytecode_opcode_set_var_prop(simplejs_vm_t *vm, simpl
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
-    simplejs_object_t *variable_object = variable->value.object;
-    uint16_t variable_object_value = variable->value.object_value;
+    simplejs_object_t *object = variable->value.object;
+    uint16_t object_value = variable->value.object_value;
 
     simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
 
     simplejs_variable_t *input = &vm->state.variables[instruction->imm & 0x0F];
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT ||
-        variable->value.object == NULL)
-    {
-        memclr(&vm->crash_hint, sizeof(vm->crash_hint));
-        vm->crash_hint.is_valid_hint = true;
-        vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
-        vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_std_object_check(vm, variable), result, status);
 
-        status = SIMPLEJS_STATUS_PROGRAM_CRASHED;
-        goto result;
-    }
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_set_property_value(variable_object, variable_object_value, property, input), default_result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_set_property_value(object, object_value, property, input), default_result, status);
 
 default_result:
     if (!SIMPLEJS_SUCCESS(status))
@@ -567,24 +602,14 @@ simplejs_status_t simplejs_bytecode_opcode_delete_var_prop(simplejs_vm_t *vm, si
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
 
     simplejs_variable_t *variable = &vm->state.variables[instruction->reg_1];
-    simplejs_object_t *variable_object = variable->value.object;
-    uint16_t variable_object_value = variable->value.object_value;
+    simplejs_object_t *object = variable->value.object;
+    uint16_t object_value = variable->value.object_value;
 
     simplejs_variable_t *property = &vm->state.variables[instruction->reg_2];
 
-    if (variable->type != SIMPLEJS_VARIABLE_TYPE_OBJECT ||
-        variable->value.object == NULL)
-    {
-        memclr(&vm->crash_hint, sizeof(vm->crash_hint));
-        vm->crash_hint.is_valid_hint = true;
-        vm->crash_hint.required_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_BINARY_OP_FLAG;
-        vm->crash_hint.children_flags = SIMPLEJS_BYTECODE_DEBUG_INFO_LEFT_FLAG;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_std_object_check(vm, variable), result, status);
 
-        status = SIMPLEJS_STATUS_PROGRAM_CRASHED;
-        goto result;
-    }
-
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_delete_property(variable_object, variable_object_value, property), default_result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_object_delete_property(object, object_value, property), default_result, status);
 
 default_result:
     if (!SIMPLEJS_SUCCESS(status))
@@ -1129,6 +1154,9 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_INIT_VAR] = simplejs_bytecode_opcode_init_var,
     [SIMPLEJS_BYTECODE_OPCODE_INIT_LOC_VAR] = simplejs_bytecode_opcode_init_loc_var,
     [SIMPLEJS_BYTECODE_OPCODE_FREE_LOC_VAR] = simplejs_bytecode_opcode_free_loc_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_STD_FLAGS] = simplejs_bytecode_opcode_set_var_std_flags,
+    [SIMPLEJS_BYTECODE_OPCODE_CLEAR_VAR_STD_FLAGS] = simplejs_bytecode_opcode_clear_var_std_flags,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_VAR_PROP] = simplejs_bytecode_opcode_get_var_prop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP] = simplejs_bytecode_opcode_set_var_prop,
