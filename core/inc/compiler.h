@@ -38,7 +38,10 @@ typedef struct simplejs_compiler_instruction
 
     struct
     {
-        simplejs_ast_node_t *node;
+        bool can_free_data;
+        void *data;
+        size_t data_size;
+
         uint32_t data_offset;
         uintptr_t label_id;
     } symbol;
