@@ -8,7 +8,9 @@ typedef struct simplejs_proxy simplejs_proxy_t;
 typedef struct simplejs_proxy_context
 {
     simplejs_raw_object_t *pointer;
-    uint16_t value;
+
+    void *object;
+    uint16_t object_value;
 } simplejs_proxy_context_t;
 
 typedef struct simplejs_proxy_property
