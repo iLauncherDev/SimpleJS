@@ -154,7 +154,7 @@ result:
     return ret;
 }
 
-simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out)
+simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out, simplejs_variable_t *out_object_level)
 {
     char tempString[4096];
     char *name;
@@ -162,6 +162,15 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
     simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
 
     // printf("simplejs_dynamic_object_get_property_value: %s\n", name);
+
+    if (out_object_level)
+    {
+        // simplejs_printf("changing out_object_level on simplejs_dynamic_object_get_property_value!\n");
+
+        simplejs_variable_t tmp_out;
+        simplejs_variable_init_object(&tmp_out, context.object, context.object_value);
+        simplejs_variable_assign(out_object_level, &tmp_out);
+    }
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
@@ -184,7 +193,7 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
         }
         else
         {
-            status = simplejs_object_get_property_value(proto_object, proto_object_value, property, out);
+            status = simplejs_object_get_property_value(proto_object, proto_object_value, property, out, out_object_level);
         }
 
         // status = SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST;
