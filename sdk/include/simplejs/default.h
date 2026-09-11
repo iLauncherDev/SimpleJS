@@ -21,6 +21,8 @@
 #include "lib/map_list.h"
 #include "lib/s_string.h"
 
+#define SIMPLEJS_CLASS_PROTOTYPE_PROPERTY "prototype"
+
 #define FUNC_IS_ON_STRING(name, vector)                               \
     bool name(char *string)                                           \
     {                                                                 \
