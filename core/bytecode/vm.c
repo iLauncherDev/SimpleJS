@@ -402,6 +402,7 @@ simplejs_status_t simplejs_bytecode_opcode_free_args(simplejs_vm_t *vm, simplejs
     simplejs_variable_assign(function_header->real_return_variable, &function_header->return_variable);
     simplejs_variable_dereference(&function_header->return_variable);
     simplejs_variable_dereference(&function_header->this_variable);
+    simplejs_variable_dereference(&function_header->super_variable);
 
     for (size_t i = 0; i < function_header->argument_count; i++)
     {
@@ -765,6 +766,70 @@ result:
     return status;
 }
 
+simplejs_status_t simplejs_bytecode_opcode_get_func_this_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &function_header->this_variable;
+
+    simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_call_this_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
+
+    simplejs_variable_t *out = &function_header->this_variable;
+    simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
+
+    simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_get_func_super_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &function_header->super_variable;
+
+    simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_call_super_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.argument_offset), result, status);
+
+    simplejs_variable_t *out = &function_header->super_variable;
+    simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
+
+    simplejs_variable_assign(out, in);
+
+result:
+    return status;
+}
+
 simplejs_status_t simplejs_bytecode_opcode_init_hash_string(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -928,7 +993,6 @@ simplejs_status_t simplejs_bytecode_opcode_call_proxy(
 
     SIMPLEJS_ASSERT(function->value.proxy != NULL);
 
-    simplejs_variable_assign(&function_header->this_variable, &vm->state.variables[SIMPLEJS_BYTECODE_VARIABLE_THIS]);
     SIMPLEJS_REQUIRE_SUCCESS(function->value.proxy(function_header), result, status);
 
 result:
@@ -1266,6 +1330,12 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_get_func_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_set_func_arg_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR] = simplejs_bytecode_opcode_get_func_this_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR] = simplejs_bytecode_opcode_set_call_this_var,
+
+    [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_SUPER_VAR] = simplejs_bytecode_opcode_get_func_super_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_SUPER_VAR] = simplejs_bytecode_opcode_set_call_super_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_INIT_HASH_STRING] = simplejs_bytecode_opcode_init_hash_string,
 

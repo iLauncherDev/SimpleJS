@@ -64,7 +64,7 @@ struct simplejs_function_header
     uint32_t argument_count;
     simplejs_variable_t *real_return_variable;
     simplejs_variable_t return_variable;
-    simplejs_variable_t this_variable;
+    simplejs_variable_t this_variable, super_variable;
     simplejs_variable_t arguments[];
 };
 
