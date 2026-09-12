@@ -36,7 +36,10 @@ struct simplejs_object
     simplejs_raw_object_t *pointer;
     simplejs_proxy_t *proxy;
 
+    simplejs_safe_list_t linked_object_list;
+
     simplejs_safe_list_entry_t gc_list_entry;
+    simplejs_safe_list_entry_t linked_object_list_entry;
 };
 
 simplejs_status_t simplejs_init_object();

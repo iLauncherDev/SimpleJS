@@ -6,6 +6,9 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
 {
     simplejs_safe_list_acquire_lock(&simplejs_gc.object_list, true);
 
+    simplejs_safe_list_t objects_to_destroy_list;
+    simplejs_init_safe_list(&objects_to_destroy_list, &objects_to_destroy_list, 0);
+
     double object_expiration_time = simplejs_gc.object_expiration_time;
     double current_time = simplejs_get_timestamp_f64();
     uintptr_t iterations = 1;
@@ -34,10 +37,11 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
                 goto skip;
 
             int reference_count = atomic_load_explicit(&object->reference_count, memory_order_acquire);
+            int min_reference_count = simplejs_object_count_circular_references(object);
 
             // simplejs_printf("reference_count = %d\n", reference_count);
 
-            if (reference_count < 1)
+            if (reference_count <= min_reference_count)
             {
                 simplejs_proxy_context_t context = {
                     .pointer = object->pointer,
@@ -51,7 +55,7 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
                 }
 
                 simplejs_remove_entry_from_safe_list(&simplejs_gc.object_list, &object->gc_list_entry, true);
-                simplejs_free_object(object);
+                simplejs_add_entry_to_safe_list(&objects_to_destroy_list, &object->gc_list_entry, true);
 
                 simplejs_printf("released object because it have no reference!\n");
 
@@ -59,11 +63,24 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
             }
 
         skip:
-            if (!SIMPLEJS_SUCCESS(status) && got_gc_lock)
+            if (got_gc_lock)
                 simplejs_spinlock_release(&object->gc_lock);
 
             current_object = next_object;
         }
+    }
+
+    simplejs_list_entry_t *end_object = &objects_to_destroy_list.list;
+    simplejs_list_entry_t *current_object = end_object->next;
+
+    while (current_object != end_object)
+    {
+        simplejs_list_entry_t *next_object = current_object->next;
+        simplejs_object_t *object = simplejs_get_list_entry_structure(current_object);
+
+        simplejs_free_object(object);
+
+        current_object = next_object;
     }
 
     simplejs_safe_list_release_lock(&simplejs_gc.object_list);

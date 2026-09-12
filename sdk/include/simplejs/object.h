@@ -11,6 +11,10 @@ typedef struct simplejs_object simplejs_object_t;
 simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *pointer, simplejs_proxy_t *proxy, simplejs_object_t **out);
 void SIMPLEJS_API simplejs_free_object(simplejs_object_t *object);
 
+int SIMPLEJS_API simplejs_object_count_circular_references(simplejs_object_t *object);
+void SIMPLEJS_API simplejs_add_linked_object(simplejs_object_t *object, simplejs_object_t *link_object);
+void SIMPLEJS_API simplejs_remove_linked_object(simplejs_object_t *object, simplejs_object_t *link_object);
+
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object);
 void SIMPLEJS_API simplejs_object_unlock_gc(simplejs_object_t *object);
 
@@ -18,8 +22,8 @@ uint32_t SIMPLEJS_API simplejs_object_get_flags(simplejs_object_t *object);
 void SIMPLEJS_API simplejs_object_set_flags(simplejs_object_t *object, uint32_t flags);
 void SIMPLEJS_API simplejs_object_clear_flags(simplejs_object_t *object, uint32_t flags);
 
-void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object);
-void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object);
+void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *parent_object, simplejs_object_t *object);
+void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *parent_object, simplejs_object_t *object);
 
 // object proxy functions
 simplejs_status_t SIMPLEJS_API simplejs_object_release(simplejs_object_t *object, uint16_t object_value);
