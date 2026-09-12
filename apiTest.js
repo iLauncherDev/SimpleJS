@@ -88,13 +88,21 @@ class my_class extends my_super_class {
     }
 }
 
-var my_instance = new my_class();
+var my_a = new my_class(), my_b = new my_class();
 
-my_class.default_value = 393093902390;
+my_a.self = my_a;
+my_b.self = my_b;
 
-my_instance.super_super_change(439032093903);
+my_a.loop = my_b;
+my_b.loop = my_a;
 
-test_plugin_function(my_instance, my_instance.default_value, my_instance.super_value, my_instance.super_super_value);
+//var my_instance = new my_class();
+//
+//my_class.default_value = 393093902390;
+//
+//my_instance.super_super_change(439032093903);
+//
+//test_plugin_function(my_instance, my_instance.default_value, my_instance.super_value, my_instance.super_super_value);
 
 return;
 
