@@ -70,13 +70,18 @@ struct simplejs_function_header
 
 uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable);
 bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, double *out);
+bool SIMPLEJS_API simplejs_variable_get_object(simplejs_variable_t *variable, void **out, uint16_t *out_value);
 bool SIMPLEJS_API simplejs_variable_get_hash_string(simplejs_variable_t *variable, simplejs_hash_string_ctx_t *out, const char *fallback_string);
 
 void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out, simplejs_proxy_get_string_mode_t mode);
 void SIMPLEJS_API simplejs_variable_to_hash_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, simplejs_hash_string_ctx_t *out, simplejs_proxy_get_string_mode_t mode);
 
-void SIMPLEJS_API simplejs_variable_dereference(simplejs_variable_t *variable);
-void SIMPLEJS_API simplejs_variable_reference(simplejs_variable_t *variable);
+bool SIMPLEJS_API simplejs_variable_dereference_ex(void *parent_pointer, const simplejs_variable_t *variable);
+bool SIMPLEJS_API simplejs_variable_reference_ex(void *parent_pointer, const simplejs_variable_t *variable);
+
+bool SIMPLEJS_API simplejs_variable_dereference(const simplejs_variable_t *variable);
+bool SIMPLEJS_API simplejs_variable_reference(const simplejs_variable_t *variable);
+
 void SIMPLEJS_API simplejs_variable_lock_gc(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_unlock_gc(simplejs_variable_t *variable);
 
@@ -90,4 +95,6 @@ void SIMPLEJS_API simplejs_variable_init_hash_string(simplejs_variable_t *variab
 void SIMPLEJS_API simplejs_variable_init_hash_string_ctx(simplejs_variable_t *variable, const simplejs_hash_string_ctx_t *hash_string_ctx);
 void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, const char *fast_string);
 
-void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, const simplejs_variable_t *new_variable);
+bool SIMPLEJS_API simplejs_variable_assign_ex(void *parent_pointer, simplejs_variable_t *variable, const simplejs_variable_t *new_variable);
+
+bool SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, const simplejs_variable_t *new_variable);

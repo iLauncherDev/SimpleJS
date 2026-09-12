@@ -36,6 +36,7 @@ simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *poin
     ret->proxy = proxy;
 
     simplejs_init_spinlock(&ret->gc_lock);
+    simplejs_init_safe_list(&ret->linked_object_list, ret, 0);
     simplejs_init_safe_list_entry(&ret->gc_list_entry, ret);
 
     ret->modification_time = simplejs_get_timestamp_f64();
@@ -65,6 +66,125 @@ psimplejs_proxy_t SIMPLEJS_API simplejs_object_get_proxy(simplejs_object_t *obje
     SIMPLEJS_ASSERT(object != NULL);
 
     return object->proxy;
+}
+
+static simplejs_object_linked_entry_t *find_linked_entry(simplejs_object_t *object, simplejs_object_t *link_object, bool create_if_necessary)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    simplejs_object_linked_entry_t *return_linked_entry = NULL;
+
+    simplejs_safe_list_acquire_lock(&object->linked_object_list, true);
+
+    simplejs_list_entry_t *end_linked_object = &object->linked_object_list.list;
+    simplejs_list_entry_t *current_linked_object = end_linked_object->next;
+
+    while (current_linked_object != end_linked_object)
+    {
+        simplejs_object_linked_entry_t *linked_object_entry = simplejs_get_list_entry_structure(current_linked_object);
+
+        if (linked_object_entry->object == link_object)
+        {
+            return_linked_entry = linked_object_entry;
+            goto result;
+        }
+
+        current_linked_object = current_linked_object->next;
+    }
+
+    if (create_if_necessary)
+    {
+        return_linked_entry = simplejs_pool_malloc(object_pool, sizeof(*return_linked_entry));
+        if (!return_linked_entry)
+            goto result;
+
+        memclr(return_linked_entry, sizeof(*return_linked_entry));
+        simplejs_init_safe_list_entry(&return_linked_entry->safe_list_entry, return_linked_entry);
+
+        return_linked_entry->object = link_object;
+
+        simplejs_add_entry_to_safe_list(&object->linked_object_list, &return_linked_entry->safe_list_entry, true);
+    }
+
+result:
+    return return_linked_entry;
+}
+
+int SIMPLEJS_API simplejs_object_count_circular_references(simplejs_object_t *object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    int count = 0;
+
+    simplejs_safe_list_acquire_lock(&object->linked_object_list, true);
+
+    simplejs_list_entry_t *end_linked_object = &object->linked_object_list.list;
+    simplejs_list_entry_t *current_linked_object = end_linked_object->next;
+
+    while (current_linked_object != end_linked_object)
+    {
+        simplejs_object_linked_entry_t *linked_object_entry = simplejs_get_list_entry_structure(current_linked_object);
+        simplejs_object_t *linked_object = linked_object_entry->object;
+
+        simplejs_object_linked_entry_t *circular_linked_entry = find_linked_entry(linked_object, object, false);
+        if (circular_linked_entry)
+            count++;
+
+        simplejs_safe_list_release_lock(&linked_object->linked_object_list);
+
+        current_linked_object = current_linked_object->next;
+    }
+
+    simplejs_safe_list_release_lock(&object->linked_object_list);
+
+    return count;
+}
+
+bool simplejs_add_linked_object(simplejs_object_t *object, simplejs_object_t *link_object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+    SIMPLEJS_ASSERT(link_object != NULL);
+
+    if (link_object == object)
+        return true;
+
+    bool status = false;
+
+    simplejs_object_linked_entry_t *linked_entry = find_linked_entry(object, link_object, true);
+    if (linked_entry)
+    {
+        simplejs_atomic_int_add(&linked_entry->reference_count, 1);
+
+        status = true;
+    }
+
+    simplejs_safe_list_release_lock(&object->linked_object_list);
+
+    return status;
+}
+
+bool simplejs_remove_linked_object(simplejs_object_t *object, simplejs_object_t *link_object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+    SIMPLEJS_ASSERT(link_object != NULL);
+
+    if (link_object == object)
+        return true;
+
+    bool status = false;
+
+    simplejs_object_linked_entry_t *linked_entry = find_linked_entry(object, link_object, false);
+    if (linked_entry && simplejs_atomic_int_sub(&linked_entry->reference_count, 1) < 2)
+    {
+        simplejs_remove_entry_from_safe_list(&object->linked_object_list, &linked_entry->safe_list_entry, true);
+        simplejs_pool_mfree(object_pool, linked_entry);
+
+        status = true;
+    }
+
+    simplejs_safe_list_release_lock(&object->linked_object_list);
+
+    return status;
 }
 
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object)
@@ -104,20 +224,32 @@ void SIMPLEJS_API simplejs_object_clear_flags(simplejs_object_t *object, uint32_
     object->modification_time = simplejs_get_timestamp_f64();
 }
 
-void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object)
+bool SIMPLEJS_API simplejs_object_reference(simplejs_object_t *parent_object, simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    simplejs_atomic_int_add(&object->reference_count, 1);
+    bool status = true;
+    if (parent_object)
+        status = simplejs_add_linked_object(parent_object, object);
+
+    simplejs_atomic_int_add(&object->reference_count, status && parent_object != object);
     object->modification_time = simplejs_get_timestamp_f64();
+
+    return status;
 }
 
-void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
+bool SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *parent_object, simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    simplejs_atomic_int_sub(&object->reference_count, 1);
+    bool status = true;
+    if (parent_object)
+        status = simplejs_remove_linked_object(parent_object, object);
+
+    simplejs_atomic_int_sub(&object->reference_count, status && parent_object != object);
     object->modification_time = simplejs_get_timestamp_f64();
+
+    return status;
 }
 
 #define simplejs_object_init_proxy_context(arg_object, arg_object_value) {.pointer = object->pointer, .object = arg_object, .object_value = arg_object_value}
