@@ -53,11 +53,16 @@ struct simplejs_function_header
 
 uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable);
 bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, double *out);
+bool SIMPLEJS_API simplejs_variable_get_object(simplejs_variable_t *variable, void **out, uint16_t *out_value);
 
 void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, char **out);
 
+void SIMPLEJS_API simplejs_variable_dereference_ex(void *parent_pointer, simplejs_variable_t *variable);
+void SIMPLEJS_API simplejs_variable_reference_ex(void *parent_pointer, simplejs_variable_t *variable);
+
 void SIMPLEJS_API simplejs_variable_dereference(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_reference(simplejs_variable_t *variable);
+
 void SIMPLEJS_API simplejs_variable_lock_gc(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_unlock_gc(simplejs_variable_t *variable);
 
@@ -68,5 +73,7 @@ void SIMPLEJS_API simplejs_variable_init_number(simplejs_variable_t *variable, s
 void SIMPLEJS_API simplejs_variable_init_object(simplejs_variable_t *variable, void *object, uint16_t object_value);
 void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable, simplejs_function_t *function);
 void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, char *fast_string);
+
+void SIMPLEJS_API simplejs_variable_assign_ex(void *parent_pointer, simplejs_variable_t *variable, simplejs_variable_t *new_variable);
 
 void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, simplejs_variable_t *new_variable);
