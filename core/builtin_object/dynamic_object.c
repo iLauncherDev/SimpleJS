@@ -37,7 +37,7 @@ simplejs_status_t simplejs_dynamic_object_release(simplejs_proxy_context_t conte
         simplejs_list_entry_t *next_property = current_property->next;
         simplejs_dynamic_object_property_t *object_property = simplejs_get_list_entry_structure(current_property);
 
-        simplejs_variable_dereference(&object_property->property.value);
+        simplejs_variable_dereference_ex(context.object, &object_property->property.value);
         if (object_property->is_hardcoded)
             goto skip_property;
 
@@ -242,7 +242,7 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
     if (object_property->is_hardcoded)
         goto result;
 
-    simplejs_variable_assign(&object_property->property.value, in);
+    simplejs_variable_assign_ex(context.object, &object_property->property.value, in);
 
     simplejs_dynamic_object_unlock_property_list(context);
 result:
@@ -285,7 +285,7 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
 
     simplejs_remove_entry_from_safe_list(&dynamic_object->property_list, &object_property->safe_list_entry, true);
 
-    simplejs_variable_dereference(&object_property->property.value);
+    simplejs_variable_dereference_ex(context.object, &object_property->property.value);
     simplejs_hook_mfree(object_property);
 
     simplejs_dynamic_object_unlock_property_list(context);
@@ -357,7 +357,7 @@ void SIMPLEJS_API simplejs_builtin_dynamic_object_set_prototype(simplejs_object_
     simplejs_dynamic_object_raw_t *dynamic_object = simplejs_object_get_raw_object(object);
     simplejs_dynamic_object_property_t *prototype_property = &dynamic_object->prototype_property;
 
-    simplejs_variable_assign(&prototype_property->property.value, prototype_value);
+    simplejs_variable_assign_ex(object, &prototype_property->property.value, prototype_value);
 }
 
 void SIMPLEJS_API simplejs_builtin_dynamic_object_set_read_only(simplejs_object_t *object, bool read_only)
