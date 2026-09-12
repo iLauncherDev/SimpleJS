@@ -25,6 +25,12 @@ struct simplejs_proxy
     simplejs_proxy_get_string_f f_get_string;
 };
 
+typedef struct simplejs_object_linked_entry
+{
+    simplejs_object_t *object;
+    simplejs_safe_list_entry_t safe_list_entry;
+} simplejs_object_linked_entry_t;
+
 struct simplejs_object
 {
     uint32_t flags;
@@ -35,6 +41,8 @@ struct simplejs_object
 
     simplejs_raw_object_t *pointer;
     simplejs_proxy_t *proxy;
+
+    simplejs_safe_list_t linked_object_list;
 
     simplejs_safe_list_entry_t gc_list_entry;
 };
