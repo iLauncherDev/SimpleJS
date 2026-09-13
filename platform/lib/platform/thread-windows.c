@@ -14,6 +14,11 @@ static unsigned __stdcall thread_function(void *arg)
     return (unsigned)return_value;
 }
 
+uintptr_t simplejs_platform_get_current_thread_id()
+{
+    return (uintptr_t)GetCurrentThread();
+}
+
 simplejs_status_t simplejs_platform_setup_thread(simplejs_thread_t *thread)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;

@@ -13,6 +13,11 @@ static void *thread_function(void *arg)
     return (void *)return_value;
 }
 
+uintptr_t simplejs_platform_get_current_thread_id()
+{
+    return (uintptr_t)pthread_self();
+}
+
 simplejs_status_t simplejs_platform_setup_thread(simplejs_thread_t *thread)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
