@@ -9,6 +9,7 @@ typedef uintptr_t (*simplejs_thread_callback_f)(struct simplejs_thread *);
 struct simplejs_thread;
 #endif
 
+uintptr_t SIMPLEJS_PLATFORM_API simplejs_get_current_thread_id();
 pvoid SIMPLEJS_PLATFORM_API simplejs_get_thread_arg(simplejs_thread_t *thread);
 simplejs_status_t SIMPLEJS_PLATFORM_API simplejs_create_thread(simplejs_thread_callback_f callback, void *arg, simplejs_thread_t **out);
 void SIMPLEJS_PLATFORM_API simplejs_destroy_thread(simplejs_thread_t *thread);
