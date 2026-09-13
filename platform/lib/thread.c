@@ -1,5 +1,10 @@
 #include <lib/thread.h>
 
+uintptr_t SIMPLEJS_PLATFORM_API simplejs_get_current_thread_id()
+{
+    return simplejs_platform_get_current_thread_id();
+}
+
 pvoid SIMPLEJS_PLATFORM_API simplejs_get_thread_arg(simplejs_thread_t *thread)
 {
     SIMPLEJS_ASSERT(thread != NULL);
