@@ -9,6 +9,10 @@ else()
 endif()
 
 list(APPEND SIMPLEJS_SOURCE
+    ${SIMPLEJS_PATH}/main.c
+
+    ${SIMPLEJS_PATH}/lib/ansi_color.c
+
     ${SIMPLEJS_PATH}/lib/platform/file-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/file.c
 
@@ -27,9 +31,10 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/lib/platform/thread-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/thread.c
 
-    ${SIMPLEJS_PATH}/lib/spinlock.c
+    ${SIMPLEJS_PATH}/lib/platform/stdout-${SIMPLEJS_PLATFORM}.c
+    ${SIMPLEJS_PATH}/lib/stdout.c
 
-    ${SIMPLEJS_PATH}/lib/stdout_buffer.c
+    ${SIMPLEJS_PATH}/lib/spinlock.c
 
     ${SIMPLEJS_PATH}/lib/map_buffer.c
     ${SIMPLEJS_PATH}/lib/map_buffer_file.c
