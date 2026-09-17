@@ -1,7 +1,7 @@
 #include <tokenizer.h>
 
 static char *useless_chars = "\r";
-static char *separators_chars = " \n";
+static char *separators_chars = " \t\n";
 static char *valid_operators = "~;:,.${}()[]<>+-*/%|&!=";
 
 static char *oneline_comment_operators = "//";
