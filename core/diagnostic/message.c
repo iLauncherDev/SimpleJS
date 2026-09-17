@@ -47,10 +47,10 @@ found_indicator_color:
 
     simplejs_get_linemap_by_offset(message->linemap_ctx, message->token_offset.start, &temp_cursor);
 
-    printf("%s:%lu:%lu: %s%s:%s %s\n",
-           message->linemap_ctx->file_path, (unsigned long)(temp_cursor.line + 1), (unsigned long)(temp_cursor.column + 1),
-           indicator_color, message->type, SIMPLEJS_ANSI_COMMAND("[0"),
-           message->message);
+    simplejs_stdout_printf("%s:%lu:%lu:%lu: %s%s:%s %s\n",
+                           message->linemap_ctx->file_path, (unsigned long)(temp_cursor.line + 1), (unsigned long)(temp_cursor.column + 1), (long)0,
+                           indicator_color, message->type, SIMPLEJS_ANSI_COMMAND("[0"),
+                           message->message);
 
     simplejs_get_linemap_by_offset(message->linemap_ctx, message->token_offset.start, &line_cursor);
     start_error_line = line_cursor.line;
@@ -75,7 +75,7 @@ found_indicator_color:
         char temp_prefix_string[256] = {0};
         snprintf(temp_prefix_string, sizeof(temp_prefix_string) - 1, diagnostic_fmt_prefix, (unsigned long)(current_line + 1));
 
-        printf(temp_prefix_string);
+        simplejs_stdout_printf(temp_prefix_string);
 
         bool printed_indicator = false;
 
@@ -90,19 +90,19 @@ found_indicator_color:
             {
                 printed_indicator = true;
 
-                printf(indicator_color);
+                simplejs_stdout_printf(indicator_color);
             }
 
-            printf("%c", chr0);
+            simplejs_stdout_printf("%c", chr0);
 
             if (printed_indicator &&
                 ((current_offset + 1) == message->token_offset.end ||
                  (current_offset + 1) >= linemap->offset.end))
             {
-                printf(SIMPLEJS_ANSI_COMMAND("[0"));
+                simplejs_stdout_printf(SIMPLEJS_ANSI_COMMAND("[0"));
             }
         }
-        printf("\n");
+        simplejs_stdout_printf("\n");
 
         if (current_line >= start_error_line &&
             current_line <= end_error_line)
@@ -110,7 +110,7 @@ found_indicator_color:
             printed_indicator = false;
 
             for (size_t i = 0; temp_prefix_string[i] != '\0'; i++)
-                printf(" ");
+                simplejs_stdout_printf(" ");
 
             for (uint64_t current_offset = linemap->offset.start; current_offset < linemap->offset.end; current_offset++)
             {
@@ -126,25 +126,25 @@ found_indicator_color:
                     {
                         printed_indicator = true;
 
-                        printf(indicator_color);
+                        simplejs_stdout_printf(indicator_color);
                     }
 
-                    printf("^");
+                    simplejs_stdout_printf("^");
 
                     if (printed_indicator &&
                         ((current_offset + 1) >= message->token_offset.end ||
                          (current_offset + 1) >= linemap->offset.end))
                     {
-                        printf(SIMPLEJS_ANSI_COMMAND("[0"));
+                        simplejs_stdout_printf(SIMPLEJS_ANSI_COMMAND("[0"));
                     }
                 }
                 else
                 {
-                    printf("%c", chr0 != '\t' ? ' ' : chr0);
+                    simplejs_stdout_printf("%c", chr0 != '\t' ? ' ' : chr0);
                 }
             }
 
-            printf("\n");
+            simplejs_stdout_printf("\n");
         }
     }
 }
