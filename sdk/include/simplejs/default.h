@@ -51,5 +51,8 @@
     case name:               \
         return #name
 
+simplejs_status_t SIMPLEJS_PLATFORM_API simplejs_platform_init();
+void SIMPLEJS_PLATFORM_API simplejs_platform_uninit();
+
 simplejs_status_t SIMPLEJS_API simplejs_init();
 void SIMPLEJS_API simplejs_uninit();
