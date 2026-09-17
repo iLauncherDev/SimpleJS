@@ -490,9 +490,10 @@ simplejs_status_t simplejs_alloc_identifier_node(
             SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_ast_node(node_type, &identifier_ast), result, status);
 
             identifier_ast->context = (void *)((uintptr_t)local_scoped.reference);
-            identifier_ast->diagnostic_token = token;
-            identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
         }
+
+        identifier_ast->diagnostic_token = token;
+        identifier_ast->diagnostic_offset = identifier_ast->diagnostic_token->offset;
     }
     else
     {
