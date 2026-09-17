@@ -2366,18 +2366,18 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
     repeat_compile_loop:
         current_code_offset = code_offset;
 
+        bool has_incremented = false;
+
         simplejs_list_entry_t *end_instruction = &compiler_ctx->instruction_list;
         simplejs_list_entry_t *current_instruction = end_instruction->next;
-
-        printf("new iteration\n");
 
         while (current_instruction != end_instruction)
         {
             simplejs_compiler_instruction_t *compiler_instruction = simplejs_get_list_entry_structure(current_instruction);
             if (compiler_instruction->type != SIMPLEJS_COMPILER_INSTRUCTION_TYPE_NORMAL)
             {
-                if (compiler_instruction->symbol.data_offset != current_code_offset)
-                    repeat_count++;
+                if (compiler_instruction->symbol.data_offset != current_code_offset && !has_incremented)
+                    repeat_count++, has_incremented = true;
 
                 compiler_instruction->symbol.data_offset = current_code_offset;
                 goto skip_instruction;
@@ -2497,7 +2497,7 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
                 }
                 else
                 {
-                    printf("compiler debug without diagnostic token!\n");
+                    simplejs_stdout_printf("compiler debug without diagnostic token!\n");
                 }
             }
 
