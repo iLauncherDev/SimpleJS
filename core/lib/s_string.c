@@ -1,4 +1,5 @@
 #include <lib/s_string.h>
+#include <simplejs/lib/stdout.h>
 
 size_t SIMPLEJS_API simplejs_strnlen(const char *str, size_t n)
 {
@@ -44,7 +45,7 @@ void SIMPLEJS_API simplejs_vprintf_ex(char *file, int line, char *fmt, va_list a
     if (isBreakingLine)
     {
         isBreakingLine = false;
-        printf("(%s:%d) ", file, line);
+        simplejs_stdout_printf("(%s:%d) ", file, line);
     }
 
     if (strchr(fmt, '\n'))
@@ -52,7 +53,7 @@ void SIMPLEJS_API simplejs_vprintf_ex(char *file, int line, char *fmt, va_list a
         isBreakingLine = true;
     }
 
-    vprintf(fmt, args);
+    simplejs_stdout_vprintf(fmt, args);
 }
 
 void SIMPLEJS_API simplejs_printf_ex(char *file, int line, char *fmt, ...)
