@@ -1,6 +1,10 @@
 #pragma once
 #include "../api.h"
 #include "../type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
   
 typedef enum simplejs_status
 {
@@ -23,3 +27,7 @@ typedef enum simplejs_status
 #define SIMPLEJS_REQUIRE_SUCCESS(var, label, status) SIMPLEJS_REQUIRE(SIMPLEJS_SUCCESS((status) = (var)), label)
 
 const pchar SIMPLEJS_API simplejs_get_status_string(simplejs_status_t status);
+
+#ifdef __cplusplus
+}
+#endif
