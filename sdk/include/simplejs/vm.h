@@ -2,6 +2,10 @@
 #include "object.h"
 #include "linemap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct simplejs_vm_memory simplejs_vm_memory_t;
 typedef struct simplejs_vm simplejs_vm_t;
 
@@ -37,3 +41,7 @@ simplejs_status_t SIMPLEJS_API simplejs_vm_call_function(simplejs_vm_t *vm,
 simplejs_status_t SIMPLEJS_API simplejs_execute_vm(simplejs_vm_t *vm);
 
 void SIMPLEJS_API simplejs_reset_reverse_vm(simplejs_vm_t *vm);
+
+#ifdef __cplusplus
+}
+#endif
