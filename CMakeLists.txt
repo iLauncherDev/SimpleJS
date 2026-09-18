@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(simplejs C)
+project(simplejs C CXX)
 
 set(SIMPLEJS_SDK_INCLUDE_PATH "${CMAKE_CURRENT_LIST_DIR}/sdk/include")
 

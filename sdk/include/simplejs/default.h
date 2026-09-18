@@ -19,6 +19,10 @@
 #include "lib/safe_list.h"
 #include "lib/s_string.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SIMPLEJS_CLASS_PROTOTYPE_PROPERTY "prototype"
 #define SIMPLEJS_CLASS_CONSTRUCTOR_PROPERTY "constructor"
 
@@ -59,3 +63,7 @@ void SIMPLEJS_PLATFORM_API simplejs_platform_uninit();
 
 simplejs_status_t SIMPLEJS_API simplejs_init();
 void SIMPLEJS_API simplejs_uninit();
+
+#ifdef __cplusplus
+}
+#endif
