@@ -5,6 +5,10 @@
 #include "hash_string.h"
 #include "proxy_enum.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef union simplejs_variable simplejs_variable_t;
 
 typedef enum simplejs_variable_type
@@ -89,3 +93,7 @@ void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variab
 bool SIMPLEJS_API simplejs_variable_assign_ex(void *parent_pointer, simplejs_variable_t *variable, const simplejs_variable_t *new_variable);
 
 bool SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, const simplejs_variable_t *new_variable);
+
+#ifdef __cplusplus
+}
+#endif

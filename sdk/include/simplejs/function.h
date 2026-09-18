@@ -1,6 +1,10 @@
 #pragma once
 #include "default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct simplejs_function simplejs_function_t;
 typedef struct simplejs_function_header simplejs_function_header_t;
 typedef simplejs_status_t (*simplejs_function_proxy_t)(simplejs_function_header_t *function_header);
@@ -24,3 +28,6 @@ struct simplejs_function
     } value;
 };
 
+#ifdef __cplusplus
+}
+#endif
