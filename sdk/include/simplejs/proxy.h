@@ -2,6 +2,10 @@
 #include "default.h"
 #include "variable.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SIMPLEJS_PROXY_STD_FLAG_PERMA_LOCK (1 << 0)
 #define SIMPLEJS_PROXY_STD_FLAG_READ_ONLY (1 << 1)
 
@@ -84,3 +88,7 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_set_property_value(simplejs_proxy_
 simplejs_status_t SIMPLEJS_API simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property);
 
 simplejs_status_t SIMPLEJS_API simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, const char **out);
+
+#ifdef __cplusplus
+}
+#endif

@@ -2,6 +2,10 @@
 #include "spinlock.h"
 #include "list.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SIMPLEJS_SAFE_LIST_FLAG_DISABLE_LOCK (1 << 0)
 
 #define simplejs_init_safe_list(safe_list, struct_pointer, flags) \
@@ -35,3 +39,7 @@ void SIMPLEJS_API simplejs_safe_list_release_lock(simplejs_safe_list_t *safe_lis
 bool SIMPLEJS_API simplejs_check_entry_from_safe_list(simplejs_safe_list_t *safe_list, simplejs_safe_list_entry_t *entry, bool avoid_lock);
 void SIMPLEJS_API simplejs_add_entry_to_safe_list(simplejs_safe_list_t *safe_list, simplejs_safe_list_entry_t *entry, bool avoid_lock);
 void SIMPLEJS_API simplejs_remove_entry_from_safe_list(simplejs_safe_list_t *safe_list, simplejs_safe_list_entry_t *entry, bool avoid_lock);
+
+#ifdef __cplusplus
+}
+#endif

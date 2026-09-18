@@ -1,6 +1,10 @@
 #pragma once
 #include "default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum
 {
     SIMPLEJS_NUMBER_TYPE_BOOLEAN,
@@ -55,3 +59,7 @@ double SIMPLEJS_API simplejs_number_get_float64(simplejs_number_t *number);
 uint32_t SIMPLEJS_API simplejs_number_get_int32(simplejs_number_t *number);
 uint64_t SIMPLEJS_API simplejs_number_get_int64(simplejs_number_t *number);
 uintptr_t SIMPLEJS_API simplejs_number_get_intptr(simplejs_number_t *number);
+
+#ifdef __cplusplus
+}
+#endif

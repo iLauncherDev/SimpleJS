@@ -2,6 +2,10 @@
 #include "default.h"
 #include "lib/map_buffer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct simplejs_linemap simplejs_linemap_t, *psimplejs_linemap_t;
 typedef struct simplejs_linemap_ctx simplejs_linemap_ctx_t, *psimplejs_linemap_ctx_t;
 
@@ -22,3 +26,7 @@ psimplejs_linemap_t SIMPLEJS_API simplejs_get_linemap_by_line(
 
 void SIMPLEJS_API simplejs_free_linemap_ctx(simplejs_linemap_ctx_t *linemap_ctx);
 simplejs_status_t SIMPLEJS_API simplejs_generate_linemap(char *file_path, simplejs_map_buffer_t *source_code, simplejs_linemap_ctx_t **out);
+
+#ifdef __cplusplus
+}
+#endif
