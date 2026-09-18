@@ -1,6 +1,10 @@
 #pragma once
 #include "../default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct simplejs_map_buffer simplejs_map_buffer_t;
 
 typedef size_t (*simplejs_map_buffer_read_f)(simplejs_map_buffer_t *map_buffer, void *buffer, uint64_t offset, size_t length);
@@ -21,3 +25,7 @@ size_t SIMPLEJS_PLATFORM_API simplejs_map_buffer_read(simplejs_map_buffer_t *map
 size_t SIMPLEJS_PLATFORM_API simplejs_map_buffer_write(simplejs_map_buffer_t *map_buffer, void *buffer, uint64_t offset, size_t length);
 uint64_t SIMPLEJS_PLATFORM_API simplejs_map_buffer_get_size(simplejs_map_buffer_t *map_buffer);
 void SIMPLEJS_PLATFORM_API simplejs_destroy_map_buffer(simplejs_map_buffer_t *map_buffer);
+
+#ifdef __cplusplus
+}
+#endif
