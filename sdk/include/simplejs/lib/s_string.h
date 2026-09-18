@@ -1,6 +1,10 @@
 #pragma once
 #include "../default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct simplejs_utf8_string
 {
     uint8_t *buffer;
@@ -17,3 +21,7 @@ void SIMPLEJS_API simplejs_printf_ex(char *file, int line, char *fmt, ...);
 
 #define simplejs_vprintf(fmt, args) simplejs_vprintf_ex(__FILE__, __LINE__, fmt, args)
 #define simplejs_printf(fmt, ...) simplejs_printf_ex(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
+#ifdef __cplusplus
+}
+#endif

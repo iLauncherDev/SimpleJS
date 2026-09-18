@@ -1,6 +1,10 @@
 #pragma once
 #include "../default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef volatile int simplejs_atomic_int_t;
 typedef volatile int64_t simplejs_atomic_int64_t;
 
@@ -57,3 +61,7 @@ typedef volatile int64_t simplejs_atomic_int64_t;
     callback(int64, int64_t)
 
 _gen_atomic_int_all_type(_gen_atomic_int_all_func_decl);
+
+#ifdef __cplusplus
+}
+#endif

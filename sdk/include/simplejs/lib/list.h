@@ -1,6 +1,10 @@
 #pragma once
 #include "../default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define simplejs_init_list_entry(entry, struct_pointer) \
     _simplejs_init_list_entry(entry, (uintptr_t)struct_pointer - (uintptr_t)entry)
 
@@ -16,3 +20,7 @@ pvoid SIMPLEJS_API simplejs_get_list_entry_structure(simplejs_list_entry_t *entr
 void SIMPLEJS_API simplejs_insert_tail_list(simplejs_list_entry_t *head, simplejs_list_entry_t *list_to_insert);
 void SIMPLEJS_API simplejs_insert_head_list(simplejs_list_entry_t *head, simplejs_list_entry_t *list_to_insert);
 void SIMPLEJS_API simplejs_remove_entry_list(simplejs_list_entry_t *entry);
+
+#ifdef __cplusplus
+}
+#endif

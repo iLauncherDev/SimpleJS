@@ -1,6 +1,10 @@
 #pragma once
 #include "../default.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct simplejs_spinlock
 {
     simplejs_atomic_int64_t thread;
@@ -10,3 +14,7 @@ typedef struct simplejs_spinlock
 void SIMPLEJS_PLATFORM_API simplejs_init_spinlock(simplejs_spinlock_t *spinlock);
 bool SIMPLEJS_PLATFORM_API simplejs_spinlock_acquire(simplejs_spinlock_t *spinlock, bool wait_flag);
 void SIMPLEJS_PLATFORM_API simplejs_spinlock_release(simplejs_spinlock_t *spinlock);
+
+#ifdef __cplusplus
+}
+#endif
