@@ -33,4 +33,4 @@ simplejs_status_t SIMPLEJS_API simplejs_object_set_property_value(simplejs_objec
 
 simplejs_status_t SIMPLEJS_API simplejs_object_delete_property(simplejs_object_t *object, uint16_t object_value, simplejs_variable_t *property);
 
-simplejs_status_t SIMPLEJS_API simplejs_object_get_string(simplejs_object_t *object, uint16_t object_value, char **out);
+simplejs_status_t SIMPLEJS_API simplejs_object_get_string(simplejs_object_t *object, uint16_t object_value, const char **out);
