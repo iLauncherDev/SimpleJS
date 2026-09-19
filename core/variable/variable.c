@@ -27,7 +27,7 @@ bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, do
     return true;
 }
 
-void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, char **out)
+void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
@@ -73,7 +73,7 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
             break;
         }
 
-        char *object_type = "[Unknown Object]";
+        const char *object_type = "[Unknown Object]";
         simplejs_object_get_string(variable->value.object, variable->value.object_value, &object_type);
 
         *out = object_type;
@@ -218,7 +218,7 @@ void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable,
     variable->type = SIMPLEJS_VARIABLE_TYPE_FUNCTION;
 }
 
-void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, char *fast_string)
+void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, const char *fast_string)
 {
     variable->value.fast_string = fast_string;
     variable->type = SIMPLEJS_VARIABLE_TYPE_FAST_STRING;
