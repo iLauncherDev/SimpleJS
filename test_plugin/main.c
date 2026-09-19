@@ -11,7 +11,7 @@ simplejs_status_t test_plugin_function(simplejs_function_header_t *function_head
 
     for (uint32_t i = 0; i < function_header->argument_count; i++)
     {
-        char *out;
+        const char *out;
         simplejs_variable_to_string(&function_header->arguments[i], tempBuffer, sizeof(tempBuffer), &out);
 
         simplejs_printf("argument %u from test_plugin_function! (%s value)\n", i, out);
