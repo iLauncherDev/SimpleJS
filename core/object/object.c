@@ -191,7 +191,7 @@ simplejs_status_t SIMPLEJS_API simplejs_object_delete_property(simplejs_object_t
     return simplejs_proxy_delete_property(object->proxy, context, property);
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_object_get_string(simplejs_object_t *object, uint16_t object_value, char **out)
+simplejs_status_t SIMPLEJS_API simplejs_object_get_string(simplejs_object_t *object, uint16_t object_value, const char **out)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
