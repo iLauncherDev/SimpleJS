@@ -57,7 +57,9 @@ typedef enum
     GENERATE_ALU_OUT_VALUE(out, name) = result
 #define GENERATE_ALU_FLUSH_RESULT(result, out, name, upper_name) _GENERATE_ALU_FLUSH_RESULT(result, out, name, upper_name)
 
-extern uint64_t (*simplejs_number_get_int_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number);
+extern uint32_t (*simplejs_number_get_int32_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number);
+extern uint64_t (*simplejs_number_get_int64_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number);
+extern uintptr_t (*simplejs_number_get_intptr_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number);
 extern float (*simplejs_number_get_float32_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number);
 extern double (*simplejs_number_get_float64_jumptable[SIMPLEJS_NUMBER_TYPE_END])(simplejs_number_t *number);
 
