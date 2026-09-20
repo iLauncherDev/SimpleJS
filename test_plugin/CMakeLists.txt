@@ -16,4 +16,4 @@ set_target_properties(${SIMPLEJS_LIB_NAME} PROPERTIES
 target_include_directories(${SIMPLEJS_LIB_NAME} PRIVATE ${SIMPLEJS_INCLUDE_PATH})
 target_include_directories(${SIMPLEJS_LIB_NAME} PUBLIC ${SIMPLEJS_SDK_INCLUDE_PATH})
 
-target_link_libraries(${SIMPLEJS_LIB_NAME} PUBLIC simplejs_core)
+target_link_libraries(${SIMPLEJS_LIB_NAME} PUBLIC simplejs_core_cpp)
