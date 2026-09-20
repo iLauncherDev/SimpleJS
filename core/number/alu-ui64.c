@@ -1,4 +1,4 @@
-#define simplejs_number_get_intXX_jumptable simplejs_number_get_int_jumptable
+#define simplejs_number_get_intXX_jumptable simplejs_number_get_int64_jumptable
 
 #define INT_NAME 64
 #define UPPER_INT_NAME 64

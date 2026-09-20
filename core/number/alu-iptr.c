@@ -1,4 +1,4 @@
-#define simplejs_number_get_intXX_jumptable simplejs_number_get_int_jumptable
+#define simplejs_number_get_intXX_jumptable simplejs_number_get_intptr_jumptable
 
 #define INT_NAME ptr
 #define UPPER_INT_NAME PTR
