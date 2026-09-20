@@ -20,6 +20,8 @@ simplejs_status_t test_plugin_function(simplejs_function_header_t *function_head
     return status;
 }
 
+int SIMPLEJS_CPP_API stub();
+
 simplejs_status_t SIMPLEJS_PLUGIN_API plugin_main(simplejs_object_t *global_object)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -38,6 +40,8 @@ simplejs_status_t SIMPLEJS_PLUGIN_API plugin_main(simplejs_object_t *global_obje
     status = simplejs_object_set_property_value(global_object, 0, &property_variable, &function_variable);
 
     simplejs_printf("hello from plugin_main!\n");
+
+    stub();
 
     return status;
 }
