@@ -224,7 +224,7 @@ void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variab
     variable->type = SIMPLEJS_VARIABLE_TYPE_FAST_STRING;
 }
 
-void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, simplejs_variable_t *new_variable)
+void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, const simplejs_variable_t *new_variable)
 {
     simplejs_variable_t old_variable = *variable;
 
