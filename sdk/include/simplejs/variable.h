@@ -69,4 +69,4 @@ void SIMPLEJS_API simplejs_variable_init_object(simplejs_variable_t *variable, v
 void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable, simplejs_function_t *function);
 void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, const char *fast_string);
 
-void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, simplejs_variable_t *new_variable);
+void SIMPLEJS_API simplejs_variable_assign(simplejs_variable_t *variable, const simplejs_variable_t *new_variable);
