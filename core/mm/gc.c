@@ -33,7 +33,7 @@ void SIMPLEJS_API simplejs_gc_event(bool ignore_expiration_time)
                 diff_time_seconds < object_expiration_time)
                 goto skip;
 
-            int reference_count = atomic_load_explicit(&object->reference_count, memory_order_acquire);
+            int reference_count = simplejs_atomic_int_load(&object->reference_count);
 
             // simplejs_printf("reference_count = %d\n", reference_count);
 
