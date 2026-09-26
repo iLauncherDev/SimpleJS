@@ -94,7 +94,7 @@ void SIMPLEJS_API simplejs_object_reference(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    atomic_fetch_add_explicit(&object->reference_count, 1, memory_order_relaxed);
+    simplejs_atomic_int_add(&object->reference_count, 1);
     object->modification_time = simplejs_get_timestamp_f64();
 }
 
@@ -102,7 +102,7 @@ void SIMPLEJS_API simplejs_object_dereference(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
 
-    atomic_fetch_sub_explicit(&object->reference_count, 1, memory_order_relaxed);
+    simplejs_atomic_int_sub(&object->reference_count, 1);
     object->modification_time = simplejs_get_timestamp_f64();
 }
 

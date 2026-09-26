@@ -13,6 +13,4 @@ if(MSVC)
     else()
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
     endif()
-
-    add_compile_options(/experimental:c11atomics)
 endif()
