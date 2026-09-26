@@ -26,7 +26,7 @@ struct simplejs_object
 {
     uint32_t flags;
 
-    atomic_int reference_count;
+    simplejs_atomic_int_t reference_count;
     double modification_time;
     simplejs_spinlock_t gc_lock;
 

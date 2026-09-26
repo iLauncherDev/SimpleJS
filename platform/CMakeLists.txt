@@ -34,6 +34,9 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/lib/platform/stdout-${SIMPLEJS_PLATFORM}.c
     ${SIMPLEJS_PATH}/lib/stdout.c
 
+    ${SIMPLEJS_PATH}/lib/platform/atomic-${SIMPLEJS_PLATFORM}.c
+    ${SIMPLEJS_PATH}/lib/atomic.c
+
     ${SIMPLEJS_PATH}/lib/spinlock.c
 
     ${SIMPLEJS_PATH}/lib/map_buffer.c
