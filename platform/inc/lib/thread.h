@@ -4,7 +4,7 @@
 
 typedef struct simplejs_thread
 {
-    atomic_bool is_free;
+    simplejs_atomic_int_t is_free;
     void *context;
 
     simplejs_thread_callback_f callback;
@@ -13,7 +13,7 @@ typedef struct simplejs_thread
 
 #define thread_call(thread, return_value)    \
     return_value = thread->callback(thread); \
-    atomic_store_explicit(&thread->is_free, true, memory_order_release)
+    simplejs_atomic_int_store(&thread->is_free, true)
 
 uintptr_t simplejs_platform_get_current_thread_id();
 simplejs_status_t simplejs_platform_setup_thread(simplejs_thread_t *thread);

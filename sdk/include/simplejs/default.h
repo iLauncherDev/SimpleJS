@@ -1,7 +1,6 @@
 #pragma once
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -13,6 +12,7 @@
 #include "api.h"
 #include "type.h"
 #include "hook.h"
+#include "lib/atomic.h"
 #include "lib/spinlock.h"
 #include "lib/status.h"
 #include "lib/list.h"
