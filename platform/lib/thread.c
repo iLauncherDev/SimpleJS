@@ -51,9 +51,9 @@ void SIMPLEJS_PLATFORM_API simplejs_destroy_thread(simplejs_thread_t *thread)
 {
     while (true)
     {
-        bool expected_value = true;
+        int expected_value = true;
 
-        if (atomic_compare_exchange_weak_explicit(&thread->is_free, &expected_value, false, memory_order_acquire, memory_order_relaxed))
+        if (simplejs_atomic_int_exchange_if(&thread->is_free, &expected_value, false))
             break;
     }
 
