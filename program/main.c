@@ -5,6 +5,8 @@
 #include <simplejs/lib/thread.h>
 #include <simplejs/lib/shared_lib.h>
 #include <simplejs/lib/time.h>
+#include <simplejs/lib/generic_sort.h>
+
 #include <simplejs/compiler.h>
 #include <simplejs/vm.h>
 #include <simplejs/builtin_object/dynamic_object.h>
@@ -239,6 +241,182 @@ uintptr_t gc_thread_callback(simplejs_thread_t *thread)
     return 0;
 }
 
+typedef struct
+{
+    bool has_initialized;
+
+    int *array;
+    int length;
+    int current_index;
+
+    char *name;
+} int_array_context_t;
+
+int test_array[] = {9, 1, 8, 5, 0, 3, 2, 6, 4, 7};
+int test_sorted[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+int test_reverse[] = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+int test_random[] = {42, 7, 91, 3, 56, 12, 88, 1, 34, 67};
+int test_duplicates[] = {5, 2, 8, 2, 5, 1, 8, 1, 5, 2};
+int test_all_equal[] = {7, 7, 7, 7, 7, 7, 7, 7, 7, 7};
+int test_alternating[] = {0, 9, 1, 8, 2, 7, 3, 6, 4, 5};
+int test_nearly_sorted[] = {0, 1, 2, 3, 5, 4, 6, 7, 8, 9};
+int test_negative[] = {-5, 3, -10, 0, 8, -1, 4, -7, 2, -3};
+int test_extremes[] = {
+    2147483647, -2147483647 - 1, 0, 1, -1,
+    2147483646, -2147483647, 100, -100, 42};
+int test_small[] = {2, 1};
+
+typedef struct test_list
+{
+    char *name;
+    int *array;
+    int length;
+} test_list_t;
+
+#define TEST_LIST_ENTRY(test_array) {.name = #test_array, .array = test_array, .length = sizeof(test_array) / sizeof(*test_array)}
+
+test_list_t test_arrays[] = {
+    TEST_LIST_ENTRY(test_sorted),
+    TEST_LIST_ENTRY(test_reverse),
+    TEST_LIST_ENTRY(test_random),
+    TEST_LIST_ENTRY(test_duplicates),
+    TEST_LIST_ENTRY(test_all_equal),
+    TEST_LIST_ENTRY(test_alternating),
+    TEST_LIST_ENTRY(test_nearly_sorted),
+    TEST_LIST_ENTRY(test_negative),
+    TEST_LIST_ENTRY(test_extremes),
+    TEST_LIST_ENTRY(test_small),
+};
+
+void dump_array(int_array_context_t *int_ctx)
+{
+    printf("int_ctx->array (%s) = {", int_ctx->name);
+
+    for (int i = 0; i < int_ctx->length; i++)
+    {
+        printf("%d", int_ctx->array[i]);
+
+        if ((i + 1) < int_ctx->length)
+            printf(", ");
+    }
+
+    printf("}\n");
+}
+
+size_t int_sort_get_entry_count(simplejs_generic_sort_ctx_t *sort_ctx)
+{
+    const int_array_context_t *int_ctx = sort_ctx->context;
+
+    return int_ctx->length;
+}
+
+void int_sort_goto_pointer(simplejs_generic_sort_ctx_t *sort_ctx, bool direction)
+{
+    int_array_context_t *temp_int_array_ctx = sort_ctx->_temp_context;
+    memcpy(temp_int_array_ctx, sort_ctx->context, sort_ctx->context_size);
+    temp_int_array_ctx->has_initialized = true;
+
+    temp_int_array_ctx->current_index = (temp_int_array_ctx->length - 1) * (int)direction;
+}
+
+bool int_sort_prev_pointer(simplejs_generic_sort_ctx_t *sort_ctx)
+{
+    int_array_context_t *temp_int_array_ctx = sort_ctx->_temp_context;
+    if (!temp_int_array_ctx->has_initialized)
+    {
+        memcpy(temp_int_array_ctx, sort_ctx->context, sort_ctx->context_size);
+        temp_int_array_ctx->has_initialized = true;
+
+        return true;
+    }
+
+    if (temp_int_array_ctx->current_index > 0)
+        temp_int_array_ctx->current_index--;
+
+    return temp_int_array_ctx->current_index > 0;
+}
+
+bool int_sort_next_pointer(simplejs_generic_sort_ctx_t *sort_ctx)
+{
+    int_array_context_t *temp_int_array_ctx = sort_ctx->_temp_context;
+    if (!temp_int_array_ctx->has_initialized)
+    {
+        memcpy(temp_int_array_ctx, sort_ctx->context, sort_ctx->context_size);
+        temp_int_array_ctx->has_initialized = true;
+
+        return true;
+    }
+
+    if (temp_int_array_ctx->current_index < temp_int_array_ctx->length)
+        temp_int_array_ctx->current_index++;
+
+    return temp_int_array_ctx->current_index < temp_int_array_ctx->length;
+}
+
+float int_sort_diff_f32(simplejs_generic_sort_ctx_t *sort_a_ctx, simplejs_generic_sort_ctx_t *sort_b_ctx)
+{
+    int_array_context_t *a_int_array_ctx = sort_a_ctx->_temp_context;
+    int_array_context_t *b_int_array_ctx = sort_b_ctx->_temp_context;
+
+    if (a_int_array_ctx->current_index >= a_int_array_ctx->length ||
+        b_int_array_ctx->current_index >= b_int_array_ctx->length)
+        return 0;
+
+    int backup_a = a_int_array_ctx->array[a_int_array_ctx->current_index];
+    int backup_b = b_int_array_ctx->array[b_int_array_ctx->current_index];
+
+    return (float)backup_a - (float)backup_b;
+}
+
+void int_sort_swap_entries(simplejs_generic_sort_ctx_t *sort_a_ctx, simplejs_generic_sort_ctx_t *sort_b_ctx)
+{
+    int_array_context_t *a_int_array_ctx = sort_a_ctx->_temp_context;
+    int_array_context_t *b_int_array_ctx = sort_b_ctx->_temp_context;
+
+    if (a_int_array_ctx->current_index >= a_int_array_ctx->length ||
+        b_int_array_ctx->current_index >= b_int_array_ctx->length)
+        return;
+
+    int backup_a = a_int_array_ctx->array[a_int_array_ctx->current_index];
+    int backup_b = b_int_array_ctx->array[b_int_array_ctx->current_index];
+
+    a_int_array_ctx->array[a_int_array_ctx->current_index] = backup_b;
+    b_int_array_ctx->array[b_int_array_ctx->current_index] = backup_a;
+}
+
+void test_generic_sort()
+{
+    for (int i = 0; i < sizeof(test_arrays) / sizeof(*test_arrays); i++)
+    {
+        test_list_t *test_entry = &test_arrays[i];
+
+        int_array_context_t int_ctx = {
+            .name = test_entry->name,
+            .array = test_entry->array,
+            .length = test_entry->length
+        };
+
+        simplejs_generic_sort_ctx_t generic_sort;
+        simplejs_init_generic_sort(&generic_sort, &int_ctx, sizeof(int_ctx));
+
+        simplejs_generic_sort_define_get_entry_count_callback(&generic_sort, int_sort_get_entry_count);
+        simplejs_generic_sort_define_goto_pointer_callback(&generic_sort, int_sort_goto_pointer);
+        simplejs_generic_sort_define_prev_pointer_callback(&generic_sort, int_sort_prev_pointer);
+        simplejs_generic_sort_define_next_pointer_callback(&generic_sort, int_sort_next_pointer);
+        simplejs_generic_sort_define_diff_f32_callback(&generic_sort, int_sort_diff_f32);
+        simplejs_generic_sort_define_swap_entries_callback(&generic_sort, int_sort_swap_entries);
+
+        printf("before: ");
+        dump_array(&int_ctx);
+
+        uint64_t iterations = 0;
+        simplejs_selection_sort_half_f32(&generic_sort, &iterations);
+
+        printf("after (%llu iterations): ", (long long)iterations);
+        dump_array(&int_ctx);
+    }
+}
+
 int main(int argc, char **argv)
 {
     char *abs_file_path = NULL;
@@ -262,6 +440,12 @@ int main(int argc, char **argv)
         printf("cannot init simplejs\n");
         goto result;
     }
+
+#if 0
+    test_generic_sort();
+
+    return 0;
+#endif
 
     int result = processArgs(argc, argv);
     if (result)
