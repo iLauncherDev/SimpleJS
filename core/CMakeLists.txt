@@ -9,6 +9,8 @@ list(APPEND SIMPLEJS_SOURCE
 
     ${SIMPLEJS_PATH}/lib/bitmap.c
 
+    ${SIMPLEJS_PATH}/lib/fnv1a_hash.c
+
     ${SIMPLEJS_PATH}/lib/list.c
     ${SIMPLEJS_PATH}/lib/safe_list.c
 
