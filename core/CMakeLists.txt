@@ -52,6 +52,7 @@ list(APPEND SIMPLEJS_SOURCE
     ${SIMPLEJS_PATH}/parser/parser.c
     ${SIMPLEJS_PATH}/parser/pratt-parser.c
 
+    ${SIMPLEJS_PATH}/builtin_object/dynamic_string.c
     ${SIMPLEJS_PATH}/builtin_object/dynamic_object.c
 
     ${SIMPLEJS_PATH}/object/object.c
