@@ -10,6 +10,7 @@
 
 #include <simplejs/compiler.h>
 #include <simplejs/vm.h>
+#include <simplejs/builtin_object/dynamic_string.h>
 #include <simplejs/builtin_object/dynamic_object.h>
 #include <simplejs/lib/map_buffer_file.h>
 
@@ -582,6 +583,29 @@ int main(int argc, char **argv)
 
 #if 0
     test_generic_sort();
+
+    return 0;
+#endif
+
+#if 0
+    simplejs_object_t *my_string = NULL;
+    simplejs_create_builtin_dynamic_string(&my_string);
+    SIMPLEJS_ASSERT(my_string != NULL);
+
+    size_t valid_size;
+
+    simplejs_builtin_dynamic_string_write(my_string, "Hello", 0);
+    simplejs_builtin_dynamic_string_get_size(my_string, &valid_size, NULL);
+
+    simplejs_builtin_dynamic_string_write(my_string, "World!", valid_size + 1);
+    simplejs_builtin_dynamic_string_get_size(my_string, &valid_size, NULL);
+
+    const char *out_string = NULL;
+    simplejs_object_get_string(my_string, 0, &out_string, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+
+    printf("my_string = '%s'\n", out_string);
+
+    simplejs_object_get_string(my_string, 0, &out_string, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
 
     return 0;
 #endif
