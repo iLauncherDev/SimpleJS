@@ -57,6 +57,7 @@ _simplejs_proxy_define_name_callback_impl(get_property_value);
 _simplejs_proxy_define_name_callback_impl(set_property_value);
 _simplejs_proxy_define_name_callback_impl(delete_property);
 
+_simplejs_proxy_define_name_callback_impl(get_hash_string);
 _simplejs_proxy_define_name_callback_impl(get_string);
 
 simplejs_status_t SIMPLEJS_API simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context)
@@ -149,6 +150,18 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_delete_property(simplejs_proxy_t *
     SIMPLEJS_ASSERT(property != NULL);
 
     simplejs_proxy_call_if_exists(proxy->f_delete_property, status, context, property);
+
+    return status;
+}
+
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_hash_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_hash_string_ctx_t *out, simplejs_proxy_get_string_mode_t mode)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
+
+    SIMPLEJS_ASSERT(proxy != NULL);
+    SIMPLEJS_ASSERT(context.pointer != NULL);
+
+    simplejs_proxy_call_if_exists(proxy->f_get_hash_string, status, context, out, mode);
 
     return status;
 }

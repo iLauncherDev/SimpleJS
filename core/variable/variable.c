@@ -27,6 +27,37 @@ bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, do
     return true;
 }
 
+bool SIMPLEJS_API simplejs_variable_get_hash_string(simplejs_variable_t *variable, simplejs_hash_string_ctx_t *out, const char *fallback_string)
+{
+    SIMPLEJS_ASSERT(variable != NULL);
+    SIMPLEJS_ASSERT(out != NULL);
+
+    bool result = true;
+
+    if (variable->type == SIMPLEJS_VARIABLE_TYPE_HASH_STRING)
+    {
+        simplejs_hash_string_get_context(out, variable->value.hash_string);
+    }
+    else if (variable->type == SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX)
+    {
+        *out = *variable->value.hash_string_ctx;
+    }
+    else if (variable->type == SIMPLEJS_VARIABLE_TYPE_FAST_STRING)
+    {
+        simplejs_init_hash_string_ctx(out, variable->value.fast_string);
+    }
+    else if (fallback_string)
+    {
+        simplejs_init_hash_string_ctx(out, fallback_string);
+    }
+    else
+    {
+        result = false;
+    }
+
+    return result;
+}
+
 void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out, simplejs_proxy_get_string_mode_t mode)
 {
     SIMPLEJS_ASSERT(variable != NULL);
@@ -87,6 +118,14 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
             *out = "[Function]";
             break;
 
+        case SIMPLEJS_VARIABLE_TYPE_HASH_STRING:
+            *out = variable->value.hash_string->string;
+            break;
+
+        case SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX:
+            *out = variable->value.hash_string_ctx->string;
+            break;
+
         case SIMPLEJS_VARIABLE_TYPE_FAST_STRING:
             *out = variable->value.fast_string;
             break;
@@ -104,7 +143,7 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
         {
             if (variable->value.object == NULL)
                 break;
-        
+
             simplejs_object_get_string(variable->value.object, variable->value.object_value, NULL, mode);
             break;
         }
@@ -116,6 +155,81 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
     default:
         break;
+    }
+}
+
+void SIMPLEJS_API simplejs_variable_to_hash_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, simplejs_hash_string_ctx_t *out, simplejs_proxy_get_string_mode_t mode)
+{
+    SIMPLEJS_ASSERT(variable != NULL);
+
+    bool status = true;
+
+    switch (mode)
+    {
+    case SIMPLEJS_PROXY_GET_STRING_MODE_OPEN:
+        switch (variable->type)
+        {
+        case SIMPLEJS_VARIABLE_TYPE_OBJECT:
+        {
+            if (variable->value.object == NULL)
+            {
+                status = false;
+                break;
+            }
+
+            status &= SIMPLEJS_SUCCESS(simplejs_object_get_hash_string(variable->value.object, variable->value.object_value, out, mode));
+            break;
+        }
+
+        case SIMPLEJS_VARIABLE_TYPE_HASH_STRING:
+            simplejs_hash_string_get_context(out, variable->value.hash_string);
+            break;
+
+        case SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX:
+            *out = *variable->value.hash_string_ctx;
+            break;
+
+        default:
+            status = false;
+            break;
+        }
+        break;
+
+    case SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE:
+        switch (variable->type)
+        {
+        case SIMPLEJS_VARIABLE_TYPE_OBJECT:
+        {
+            if (variable->value.object == NULL)
+            {
+                status = false;
+                break;
+            }
+
+            status &= SIMPLEJS_SUCCESS(simplejs_object_get_hash_string(variable->value.object, variable->value.object_value, NULL, mode));
+            break;
+        }
+
+        case SIMPLEJS_VARIABLE_TYPE_HASH_STRING:
+        case SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX:
+            break;
+
+        default:
+            status = false;
+            break;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    if (!status)
+    {
+        const char *out_string;
+        simplejs_variable_to_string(variable, tempBuffer, tempBufferSize, &out_string, mode);
+
+        simplejs_init_hash_string_ctx(out, out_string);
     }
 }
 
@@ -241,6 +355,18 @@ void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable,
 {
     variable->value.function = *function;
     variable->type = SIMPLEJS_VARIABLE_TYPE_FUNCTION;
+}
+
+void SIMPLEJS_API simplejs_variable_init_hash_string(simplejs_variable_t *variable, const simplejs_hash_string_t *hash_string)
+{
+    variable->value.hash_string = hash_string;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_HASH_STRING;
+}
+
+void SIMPLEJS_API simplejs_variable_init_hash_string_ctx(simplejs_variable_t *variable, const simplejs_hash_string_ctx_t *hash_string_ctx)
+{
+    variable->value.hash_string_ctx = hash_string_ctx;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX;
 }
 
 void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, const char *fast_string)
