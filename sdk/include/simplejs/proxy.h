@@ -39,6 +39,7 @@ typedef simplejs_status_t (*simplejs_proxy_set_property_value_f)(simplejs_proxy_
 
 typedef simplejs_status_t (*simplejs_proxy_delete_property_f)(simplejs_proxy_context_t context, simplejs_variable_t *property);
 
+typedef simplejs_status_t (*simplejs_proxy_get_hash_string_f)(simplejs_proxy_context_t context, simplejs_hash_string_ctx_t *out, simplejs_proxy_get_string_mode_t mode);
 typedef simplejs_status_t (*simplejs_proxy_get_string_f)(simplejs_proxy_context_t context, const char **out, simplejs_proxy_get_string_mode_t mode);
 
 simplejs_status_t SIMPLEJS_API simplejs_alloc_proxy(simplejs_proxy_t **out);
@@ -60,6 +61,7 @@ _simplejs_proxy_define_name_callback_decl(get_property_value);
 _simplejs_proxy_define_name_callback_decl(set_property_value);
 _simplejs_proxy_define_name_callback_decl(delete_property);
 
+_simplejs_proxy_define_name_callback_decl(get_hash_string);
 _simplejs_proxy_define_name_callback_decl(get_string);
 
 simplejs_status_t SIMPLEJS_API simplejs_proxy_release(simplejs_proxy_t *proxy, simplejs_proxy_context_t context);
@@ -72,4 +74,5 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_get_property_value(simplejs_proxy_
 simplejs_status_t SIMPLEJS_API simplejs_proxy_set_property_value(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in);
 simplejs_status_t SIMPLEJS_API simplejs_proxy_delete_property(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_variable_t *property);
 
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_hash_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, simplejs_hash_string_ctx_t *out, simplejs_proxy_get_string_mode_t mode);
 simplejs_status_t SIMPLEJS_API simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, const char **out, simplejs_proxy_get_string_mode_t mode);

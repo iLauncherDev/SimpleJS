@@ -7,6 +7,13 @@ static uint32_t simplejs_align_to_cacheline(uint32_t offset)
     return (offset + size) & ~size;
 }
 
+static uint32_t simplejs_align_to_hash_string(uint32_t offset)
+{
+    uint32_t size = (8 - 1);
+
+    return (offset + size) & ~size;
+}
+
 simplejs_status_t simplejs_alloc_instruction(simplejs_compiler_instruction_t instruction, simplejs_compiler_instruction_t **out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -18,6 +25,7 @@ simplejs_status_t simplejs_alloc_instruction(simplejs_compiler_instruction_t ins
     }
 
     *ret = instruction;
+    simplejs_init_list_entry(&ret->hash_string_list_entry, ret);
     simplejs_init_list_entry(&ret->list_entry, ret);
 
     *out = ret;
@@ -48,9 +56,12 @@ result:
     return status;
 }
 
-void simplejs_insert_instruction(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_instruction_t *instruction)
+void simplejs_insert_instruction(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_instruction_t *instruction, bool insert_at_start)
 {
-    simplejs_insert_tail_list(&compiler_ctx->instruction_list, &instruction->list_entry);
+    if (insert_at_start)
+        simplejs_insert_head_list(&compiler_ctx->instruction_list, &instruction->list_entry);
+    else
+        simplejs_insert_tail_list(&compiler_ctx->instruction_list, &instruction->list_entry);
 
     compiler_ctx->instruction_list_count++;
 }
@@ -124,7 +135,7 @@ simplejs_status_t simplejs_add_instruction(simplejs_compiler_ctx_t *compiler_ctx
     *ret = instruction;
     simplejs_init_list_entry(&ret->list_entry, ret);
 
-    simplejs_insert_instruction(compiler_ctx, ret);
+    simplejs_insert_instruction(compiler_ctx, ret, false);
 
 result:
     return status;
@@ -167,6 +178,19 @@ bool simplejs_reuse_symbol(simplejs_compiler_ctx_t *compiler_ctx, uint8_t opcode
     }
 
     return false;
+}
+
+static void progress_hash_string_instruction(simplejs_compiler_ctx_t *compiler_ctx, simplejs_compiler_instruction_t *compiler_instruction, bool avoid_reuse)
+{
+    if (avoid_reuse || !simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING, compiler_instruction))
+    {
+        simplejs_insert_tail_list(&compiler_ctx->hash_string_list, &compiler_instruction->hash_string_list_entry);
+
+        compiler_ctx->data_offset = simplejs_align_to_hash_string(compiler_ctx->data_offset);
+        compiler_instruction->symbol.data_offset = compiler_ctx->data_offset;
+
+        compiler_ctx->data_offset += sizeof(simplejs_hash_string_t) + compiler_instruction->symbol.data_size;
+    }
 }
 
 simplejs_bytecode_opcode_t op_ast_opcode_map[SIMPLEJS_AST_NODE_TYPE_END] = {
@@ -482,21 +506,23 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
     case SIMPLEJS_AST_NODE_TYPE_PROPERTY_REFERENCE:
     {
         simplejs_utf8_string_t *string = side->context;
+        simplejs_compiler_instruction_t *compiler_instruction = NULL;
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
 
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING;
         instruct_tmp.instruction.reg_1 = reg_info.reg_a;
 
         instruct_tmp.symbol.data = string->buffer;
         instruct_tmp.symbol.data_size = string->valid_size + 1;
         instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
 
-        if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
-            compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_instruction(instruct_tmp, &compiler_instruction), result, status);
 
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        progress_hash_string_instruction(compiler_ctx, compiler_instruction, false);
+
+        simplejs_insert_instruction(compiler_ctx, compiler_instruction, false);
         break;
     }
 
@@ -1630,6 +1656,10 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         simplejs_printf("set_func_arg_var %u, v%u", instruction.imm, instruction.reg_1);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_INIT_HASH_STRING:
+        simplejs_printf("init_hash_string %d", instruction.imm_signed);
+        break;
+
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED:
         simplejs_printf("set_var_undefined v%u", instruction.reg_1);
         break;
@@ -1649,6 +1679,14 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NATIVE_FUNCTION:
         simplejs_printf("set_var_native_function v%u, (ip relative) %d", instruction.reg_1, instruction.imm_signed);
         break;
+    case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING:
+    {
+        const simplejs_hash_string_t *hash_string = (const simplejs_hash_string_t *)(instruction_pointer + instruction.imm_signed);
+
+        simplejs_printf("set_var_hash_string v%u, (ip relative '%s') %d",
+                        instruction.reg_1, hash_string->string, instruction.imm_signed);
+        break;
+    }
     case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING:
         simplejs_printf("set_var_fast_string v%u, (ip relative '%s') %d",
                         instruction.reg_1, (char *)(instruction_pointer + instruction.imm_signed), instruction.imm_signed);
@@ -1938,6 +1976,25 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
                 break;
             }
 
+            case SIMPLEJS_BYTECODE_OPCODE_INIT_HASH_STRING:
+            {
+                uint32_t absolute_offset = data_offset + compiler_instruction->symbol.data_offset;
+
+                simplejs_bytecode_encode(&buffer[current_code_offset], instruction, &instruction_size);
+
+                int32_t relative_offset = absolute_offset - (current_code_offset + instruction_size);
+                bool extended_opcode = get_signed_int_size(relative_offset) > 2;
+
+                if (instruction->extended_opcode != extended_opcode)
+                {
+                    instruction->extended_opcode = extended_opcode;
+                    goto repeat_compile_loop;
+                }
+
+                instruction->imm_signed = relative_offset;
+                break;
+            }
+
             case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER:
             {
                 uint32_t absolute_offset = data_offset + compiler_instruction->symbol.data_offset;
@@ -1979,6 +2036,32 @@ simplejs_status_t simplejs_compile_instructions(simplejs_compiler_ctx_t *compile
                 }
 
                 instruction->imm_signed = relative_offset;
+                break;
+            }
+
+            case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING:
+            {
+                uint32_t absolute_offset = data_offset + compiler_instruction->symbol.data_offset;
+
+                simplejs_bytecode_encode(&buffer[current_code_offset], instruction, &instruction_size);
+
+                int32_t relative_offset = absolute_offset - (current_code_offset + instruction_size);
+                bool extended_opcode = get_signed_int_size(relative_offset) > 2;
+
+                if (instruction->extended_opcode != extended_opcode)
+                {
+                    instruction->extended_opcode = extended_opcode;
+                    goto repeat_compile_loop;
+                }
+
+                simplejs_hash_string_t *hash_string = (void *)&buffer[absolute_offset];
+
+                char *string = compiler_instruction->symbol.data;
+                size_t string_size = compiler_instruction->symbol.data_size;
+
+                instruction->imm_signed = relative_offset;
+
+                memcpy(hash_string->string, string, string_size);
                 break;
             }
 
@@ -2097,6 +2180,7 @@ simplejs_status_t SIMPLEJS_API simplejs_ast_to_bytecode(simplejs_parser_ctx_t *p
     memclr(compiler_ctx, sizeof(*compiler_ctx));
 
     compiler_ctx->parser_ctx = parser_ctx;
+    simplejs_init_list_entry(&compiler_ctx->hash_string_list, compiler_ctx);
     simplejs_init_list_entry(&compiler_ctx->instruction_list, compiler_ctx);
     simplejs_init_list_entry(&compiler_ctx->debug_list, compiler_ctx);
 
@@ -2123,6 +2207,40 @@ simplejs_status_t SIMPLEJS_API simplejs_ast_to_bytecode(simplejs_parser_ctx_t *p
 
     skip_ast_function:
         current_ast = current_ast->next;
+    }
+
+    simplejs_list_entry_t *end_instruction = &compiler_ctx->hash_string_list;
+    simplejs_list_entry_t *current_instruction = end_instruction->next;
+
+    while (current_instruction != end_instruction)
+    {
+        simplejs_compiler_instruction_t *compiler_instruction = simplejs_get_list_entry_structure(current_instruction);
+        if (compiler_instruction->type != SIMPLEJS_COMPILER_INSTRUCTION_TYPE_NORMAL)
+            goto skip_instruction;
+
+        simplejs_bytecode_instruction_t *bytecode_instruction = &compiler_instruction->instruction;
+
+        switch (bytecode_instruction->opcode)
+        {
+        case SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING:
+        {
+            simplejs_compiler_instruction_t *out_instruction = NULL;
+            simplejs_compiler_instruction_t new_instruction = {0};
+
+            new_instruction.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_INIT_HASH_STRING;
+            new_instruction.symbol.data_offset = compiler_instruction->symbol.data_offset;
+
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_instruction(new_instruction, &out_instruction), result, status);
+            simplejs_insert_instruction(compiler_ctx, out_instruction, true);
+            break;
+        }
+
+        default:
+            break;
+        }
+
+    skip_instruction:
+        current_instruction = current_instruction->next;
     }
 
     simplejs_compiler_instruction_t instruct_tmp = {0};

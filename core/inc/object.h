@@ -19,6 +19,7 @@ struct simplejs_proxy
 
     simplejs_proxy_delete_property_f f_delete_property;
 
+    simplejs_proxy_get_hash_string_f f_get_hash_string;
     simplejs_proxy_get_string_f f_get_string;
 };
 
