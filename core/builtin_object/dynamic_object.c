@@ -103,7 +103,8 @@ result:
     return status;
 }
 
-simplejs_dynamic_object_property_t *simplejs_dynamic_object_find_property(simplejs_proxy_context_t context, const char *name, bool create_if_necessary)
+simplejs_dynamic_object_property_t *simplejs_dynamic_object_find_property(
+    simplejs_proxy_context_t context, const simplejs_hash_string_ctx_t *hash_property, bool create_if_necessary)
 {
     simplejs_dynamic_object_property_t *ret = NULL;
 
@@ -117,7 +118,7 @@ simplejs_dynamic_object_property_t *simplejs_dynamic_object_find_property(simple
     while (current_property != end_property)
     {
         simplejs_dynamic_object_property_t *object_property = simplejs_get_list_entry_structure(current_property);
-        if (!strcmp(object_property->property.name.value.fast_string, name))
+        if (object_property->hash_string.hash == hash_property->hash)
         {
             ret = object_property;
             goto result;
@@ -128,7 +129,7 @@ simplejs_dynamic_object_property_t *simplejs_dynamic_object_find_property(simple
 
     if (create_if_necessary)
     {
-        size_t name_size = strlen(name) + 1;
+        size_t name_size = strlen(hash_property->string) + 1;
 
         ret = simplejs_hook_malloc(sizeof(*ret) + name_size);
         if (!ret)
@@ -139,9 +140,11 @@ simplejs_dynamic_object_property_t *simplejs_dynamic_object_find_property(simple
         char *allocated_name = (char *)((uintptr_t)ret + sizeof(*ret));
 
         memclr(ret, sizeof(*ret));
-        memcpy(allocated_name, name, name_size);
+        memcpy(allocated_name, hash_property->string, name_size);
 
-        simplejs_variable_init_fast_string(&ret->property.name, allocated_name);
+        ret->hash_string.hash = hash_property->hash;
+
+        simplejs_variable_init_hash_string(&ret->property.name, &ret->hash_string);
 
         simplejs_init_safe_list_entry(&ret->safe_list_entry, ret);
         simplejs_add_entry_to_safe_list(&dynamic_object->property_list, &ret->safe_list_entry, true);
@@ -157,7 +160,7 @@ result:
 simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *out, simplejs_variable_t *out_object_level)
 {
     char tempString[4096];
-    const char *name;
+    simplejs_hash_string_ctx_t hash_property;
 
     if (out_object_level)
     {
@@ -171,11 +174,11 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
 
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+    simplejs_variable_to_hash_string(property, tempString, sizeof(tempString), &hash_property, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
     // printf("simplejs_dynamic_object_get_property_value: %s\n", name);
 
-    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
+    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, &hash_property, false);
+    simplejs_variable_to_hash_string(property, tempString, sizeof(tempString), &hash_property, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
 
     if (!object_property)
     {
@@ -211,7 +214,7 @@ result:
 simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_context_t context, simplejs_variable_t *property, simplejs_variable_t *in)
 {
     char tempString[4096];
-    const char *name;
+    simplejs_hash_string_ctx_t hash_property;
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
@@ -227,11 +230,11 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
         goto result;
     }
 
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+    simplejs_variable_to_hash_string(property, tempString, sizeof(tempString), &hash_property, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
     // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
 
-    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, true);
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
+    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, &hash_property, true);
+    simplejs_variable_to_hash_string(property, tempString, sizeof(tempString), &hash_property, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
 
     if (!object_property)
     {
@@ -252,7 +255,7 @@ result:
 simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context_t context, simplejs_variable_t *property)
 {
     char tempString[4096];
-    const char *name;
+    simplejs_hash_string_ctx_t hash_property;
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
@@ -268,11 +271,11 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
         goto result;
     }
 
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+    simplejs_variable_to_hash_string(property, tempString, sizeof(tempString), &hash_property, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
     // printf("simplejs_dynamic_object_delete_property: %s\n", name);
 
-    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
+    simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, &hash_property, false);
+    simplejs_variable_to_hash_string(property, tempString, sizeof(tempString), &hash_property, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
 
     if (!object_property)
     {
@@ -348,7 +351,9 @@ static void init_hardcoded_property(simplejs_dynamic_object_raw_t *dynamic_objec
     SIMPLEJS_ASSERT(hard_property != NULL);
 
     hard_property->is_hardcoded = true;
-    hard_property->property.name = name;
+    simplejs_variable_init_fast_string(&hard_property->property.name, name);
+    hard_property->hash_string.hash = simplejs_hash_string_generate_hash(name);
+
     simplejs_init_safe_list_entry(&hard_property->safe_list_entry, hard_property);
     simplejs_add_entry_to_safe_list(&dynamic_object->property_list, &hard_property->safe_list_entry, true);
 }

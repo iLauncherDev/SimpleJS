@@ -12,6 +12,8 @@ typedef struct simplejs_dynamic_object_property
     simplejs_proxy_property_t property;
 
     simplejs_safe_list_entry_t safe_list_entry;
+
+    simplejs_hash_string_t hash_string;
 } simplejs_dynamic_object_property_t;
 
 typedef struct simplejs_dynamic_object_raw
