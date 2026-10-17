@@ -8,6 +8,7 @@ typedef struct simplejs_dynamic_object_property
 {
     bool is_hardcoded, is_hardlocked;
 
+    simplejs_hash_string_ctx_t hash_property;
     simplejs_proxy_property_t property;
 
     simplejs_safe_list_entry_t safe_list_entry;
