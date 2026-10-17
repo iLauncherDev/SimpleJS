@@ -27,6 +27,33 @@ bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, do
     return true;
 }
 
+bool SIMPLEJS_API simplejs_variable_get_hash_string(simplejs_variable_t *variable, simplejs_hash_string_ctx_t *out, const char *fallback_string)
+{
+    SIMPLEJS_ASSERT(variable != NULL);
+    SIMPLEJS_ASSERT(out != NULL);
+
+    bool result = true;
+
+    if (variable->type == SIMPLEJS_VARIABLE_TYPE_HASH_STRING)
+    {
+        simplejs_hash_string_get_context(out, variable->value.hash_string);
+    }
+    else if (variable->type == SIMPLEJS_VARIABLE_TYPE_FAST_STRING)
+    {
+        simplejs_init_hash_string_ctx(out, variable->value.fast_string);
+    }
+    else if (fallback_string)
+    {
+        simplejs_init_hash_string_ctx(out, fallback_string);
+    }
+    else
+    {
+        result = false;
+    }
+
+    return result;
+}
+
 void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out)
 {
     SIMPLEJS_ASSERT(variable != NULL);
@@ -82,6 +109,10 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
 
     case SIMPLEJS_VARIABLE_TYPE_FUNCTION:
         *out = "[Function]";
+        break;
+
+    case SIMPLEJS_VARIABLE_TYPE_HASH_STRING:
+        *out = variable->value.hash_string->string;
         break;
 
     case SIMPLEJS_VARIABLE_TYPE_FAST_STRING:
@@ -216,6 +247,12 @@ void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable,
 {
     variable->value.function = *function;
     variable->type = SIMPLEJS_VARIABLE_TYPE_FUNCTION;
+}
+
+void SIMPLEJS_API simplejs_variable_init_hash_string(simplejs_variable_t *variable, const simplejs_hash_string_t *hash_string)
+{
+    variable->value.hash_string = hash_string;
+    variable->type = SIMPLEJS_VARIABLE_TYPE_HASH_STRING;
 }
 
 void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, const char *fast_string)
