@@ -46,6 +46,7 @@ typedef struct simplejs_compiler_instruction
         uintptr_t label_id;
     } symbol;
 
+    simplejs_list_entry_t hash_string_list_entry;
     simplejs_list_entry_t list_entry;
 } simplejs_compiler_instruction_t;
 
@@ -84,6 +85,7 @@ struct simplejs_compiler_ctx
     uint32_t debug_list_count;
     uint32_t debug_list_total_count;
 
+    simplejs_list_entry_t hash_string_list;
     simplejs_list_entry_t instruction_list;
     simplejs_list_entry_t debug_list;
 

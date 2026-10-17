@@ -731,6 +731,17 @@ result:
     return status;
 }
 
+simplejs_status_t simplejs_bytecode_opcode_init_hash_string(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_hash_string_t *hash_string = (simplejs_hash_string_t *)(vm->state.instruction_pointer + instruction->imm_signed);
+    hash_string->hash = simplejs_hash_string_generate_hash(hash_string->string);
+
+result:
+    return status;
+}
+
 simplejs_status_t simplejs_bytecode_opcode_set_var_undefined(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -782,6 +793,20 @@ simplejs_status_t simplejs_bytecode_opcode_set_var_native_function(simplejs_vm_t
 
     function->type = SIMPLEJS_FUNCTION_TYPE_NATIVE;
     function->value.instruction_pointer = vm->state.instruction_pointer + instruction->imm_signed;
+
+    simplejs_variable_assign(&vm->state.variables[instruction->reg_1], &variable);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_var_hash_string(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t variable;
+    variable.type = SIMPLEJS_VARIABLE_TYPE_HASH_STRING;
+    variable.value.hash_string = (const simplejs_hash_string_t *)(vm->state.instruction_pointer + instruction->imm_signed);
 
     simplejs_variable_assign(&vm->state.variables[instruction->reg_1], &variable);
 
@@ -1167,10 +1192,13 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_get_func_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_set_func_arg_var,
 
+    [SIMPLEJS_BYTECODE_OPCODE_INIT_HASH_STRING] = simplejs_bytecode_opcode_init_hash_string,
+
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_UNDEFINED] = simplejs_bytecode_opcode_set_var_undefined,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NULL] = simplejs_bytecode_opcode_set_var_null,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NUMBER] = simplejs_bytecode_opcode_set_var_number,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_NATIVE_FUNCTION] = simplejs_bytecode_opcode_set_var_native_function,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING] = simplejs_bytecode_opcode_set_var_hash_string,
     [SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING] = simplejs_bytecode_opcode_set_var_fast_string,
 
     [SIMPLEJS_BYTECODE_OPCODE_CALL] = simplejs_bytecode_opcode_call,
