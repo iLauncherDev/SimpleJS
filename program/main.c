@@ -1,6 +1,7 @@
 #include <default.h>
 #include <simplejs/mm/gc.h>
 #include <simplejs/plugin.h>
+#include <simplejs/lib/utf8.h>
 #include <simplejs/lib/realpath.h>
 #include <simplejs/lib/thread.h>
 #include <simplejs/lib/shared_lib.h>
@@ -415,6 +416,140 @@ void test_generic_sort()
     simplejs_free_generic_sort(generic_sort);
 }
 
+static const char utf8_ascii[] = {
+    0x00, 0x41, 0x5A, 0x61, 0x7A, 0x7F}; // NUL, A, Z, a, z, DEL
+
+static const char utf8_2bytes[] = {
+    0xC2, 0xA2, // ¢ U+00A2
+    0xC3, 0xA9, // é U+00E9
+    0xC3, 0xB6, // ö U+00F6
+    0xDF, 0xBF  // U+07FF, maximum in 2 bytes
+};
+
+static const char utf8_3bytes[] = {
+    0xE0, 0xA0, 0x80, // U+0800, minimum in 3 bytes
+    0xE2, 0x82, 0xAC, // € U+20AC
+    0xE4, 0xB8, 0xAD, // 中 U+4E2D
+    0xED, 0x9F, 0xBF, // U+D7FF, before the surrogates
+    0xEE, 0x80, 0x80, // U+E000, after the surrogates
+    0xEF, 0xBF, 0xBF  // U+FFFF
+};
+
+static const char utf8_4bytes[] = {
+    0xF0, 0x90, 0x80, 0x80, // U+10000, minimum in 4 bytes
+    0xF0, 0x9F, 0x98, 0x80, // 😀 U+1F600
+    0xF0, 0x9F, 0x8C, 0x8E, // 🌎 U+1F30E
+    0xF3, 0xBF, 0xBF, 0xBF, // U+FFFFF
+    0xF4, 0x8F, 0xBF, 0xBF  // U+10FFFF, maximum Unicode
+};
+
+static const char utf8_boundaries[] = {
+    0x7F,                   // U+007F
+    0xC2, 0x80,             // U+0080
+    0xDF, 0xBF,             // U+07FF
+    0xE0, 0xA0, 0x80,       // U+0800
+    0xEF, 0xBF, 0xBD,       // U+FFFD, replacement character
+    0xF0, 0x90, 0x80, 0x80, // U+10000
+    0xF4, 0x8F, 0xBF, 0xBF  // U+10FFFF
+};
+
+static const char utf8_invalid[] = {
+    0x80,                         // Continuation byte isolated
+    0xBF,                         // Another continuation byte isolated
+    0xC0, 0xAF,                   // Overlong encoding of '/'
+    0xC1, 0xBF,                   // Lead byte invalid
+    0xE0, 0x80, 0x80,             // Overlong encoding
+    0xF0, 0x80, 0x80, 0x80,       // Overlong encoding
+    0xED, 0xA0, 0x80,             // U+D800, surrogate
+    0xED, 0xBF, 0xBF,             // U+DFFF, surrogate
+    0xF4, 0x90, 0x80, 0x80,       // Above U+10FFFF
+    0xF5, 0x80, 0x80, 0x80,       // Lead byte out of bounds
+    0xF8, 0x80, 0x80, 0x80, 0x80, // Lead byte invalid
+    0xFE, 0xFF                    // Invalid bytes
+};
+
+static const char utf8_truncated_2[] = {
+    0xC3 // Missing 1 continuation byte
+};
+
+static const char utf8_truncated_3[] = {
+    0xE2, 0x82 // Missing 1 byte
+};
+
+static const char utf8_truncated_4a[] = {
+    0xF0, 0x9F // Missing 2 bytes
+};
+
+static const char utf8_truncated_4b[] = {
+    0xF0, 0x9F, 0x98 // Missing 1 byte
+};
+
+typedef struct test_list_utf8
+{
+    char *name;
+    const char *string;
+    int length;
+} test_list_utf8_t;
+
+#define TEST_LIST_UTF8_ENTRY(test_string) {.name = #test_string, .string = test_string, .length = sizeof(test_string) / sizeof(*test_string)}
+
+test_list_utf8_t test_string[] = {
+    TEST_LIST_UTF8_ENTRY(utf8_ascii),
+    TEST_LIST_UTF8_ENTRY(utf8_2bytes),
+    TEST_LIST_UTF8_ENTRY(utf8_3bytes),
+    TEST_LIST_UTF8_ENTRY(utf8_4bytes),
+    TEST_LIST_UTF8_ENTRY(utf8_boundaries),
+    TEST_LIST_UTF8_ENTRY(utf8_invalid),
+    TEST_LIST_UTF8_ENTRY(utf8_truncated_2),
+    TEST_LIST_UTF8_ENTRY(utf8_truncated_3),
+    TEST_LIST_UTF8_ENTRY(utf8_truncated_4a),
+    TEST_LIST_UTF8_ENTRY(utf8_truncated_4b),
+};
+
+void test_utf8_decoder()
+{
+    for (int i = 0; i < sizeof(test_string) / sizeof(*test_string); i++)
+    {
+        test_list_utf8_t *entry = &test_string[i];
+
+        printf("testing '%s':\n", entry->name);
+
+        int j;
+
+        printf("string:\n");
+        j = 0;
+        while (j < entry->length)
+        {
+            uint8_t j_skip;
+            uint32_t unicode;
+            bool result = simplejs_utf8_decode_char(&entry->string[j], &entry->string[entry->length], &j_skip, &unicode);
+
+            uint8_t buffer_bytes;
+            char encoded_buffer[5] = {0};
+            simplejs_utf8_encode_char(unicode, encoded_buffer, &encoded_buffer[(sizeof(encoded_buffer) / sizeof(*encoded_buffer)) - 1], &buffer_bytes);
+
+            printf("%s", encoded_buffer);
+
+            j += j_skip;
+        }
+        printf("\n");
+
+        printf("code:\n");
+        j = 0;
+        while (j < entry->length)
+        {
+            uint8_t j_skip;
+            uint32_t unicode;
+            bool result = simplejs_utf8_decode_char(&entry->string[j], &entry->string[entry->length], &j_skip, &unicode);
+
+            printf("(valid %s) %06x ", result ? "yes" : "no", unicode);
+
+            j += j_skip;
+        }
+        printf("\n");
+    }
+}
+
 int main(int argc, char **argv)
 {
     char *abs_file_path = NULL;
@@ -438,6 +573,12 @@ int main(int argc, char **argv)
         printf("cannot init simplejs\n");
         goto result;
     }
+
+#if 0
+    test_utf8_decoder();
+
+    return 0;
+#endif
 
 #if 0
     test_generic_sort();
