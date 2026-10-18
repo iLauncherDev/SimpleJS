@@ -2,9 +2,8 @@
 #include "default.h"
 #include "variable.h"
 
-typedef void simplejs_raw_object_t;
-
-typedef struct simplejs_proxy simplejs_proxy_t;
+typedef void simplejs_raw_object_t, *psimplejs_raw_object_t;
+typedef struct simplejs_proxy simplejs_proxy_t, *psimplejs_proxy_t;
 
 // proxy function types
 typedef simplejs_status_t (*simplejs_proxy_release_f)(simplejs_raw_object_t *pointer);

@@ -21,6 +21,8 @@ typedef struct simplejs_object_property
 
 // object functions
 simplejs_status_t SIMPLEJS_API simplejs_alloc_object(simplejs_raw_object_t *pointer, simplejs_proxy_t *proxy, simplejs_object_t **out);
+psimplejs_raw_object_t SIMPLEJS_API simplejs_object_get_raw_object(simplejs_object_t *object);
+psimplejs_proxy_t SIMPLEJS_API simplejs_object_get_proxy(simplejs_object_t *object);
 
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object);
 void SIMPLEJS_API simplejs_object_release_gc(simplejs_object_t *object);

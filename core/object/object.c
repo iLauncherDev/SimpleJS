@@ -26,6 +26,20 @@ result:
     return status;
 }
 
+psimplejs_raw_object_t SIMPLEJS_API simplejs_object_get_raw_object(simplejs_object_t *object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    return object->pointer;
+}
+
+psimplejs_proxy_t SIMPLEJS_API simplejs_object_get_proxy(simplejs_object_t *object)
+{
+    SIMPLEJS_ASSERT(object != NULL);
+
+    return object->proxy;
+}
+
 void SIMPLEJS_API simplejs_object_lock_gc(simplejs_object_t *object)
 {
     SIMPLEJS_ASSERT(object != NULL);
