@@ -349,7 +349,7 @@ static simplejs_status_t simplejs_process_substring(simplejs_token_ctx_t *ctx, s
                     utf8Buffer[utf8BufferPos + 1] = '\0';
 
                     uint32_t code = strtoul(utf8Buffer, NULL, 16);
-                    status = simplejs_encode_utf8_char(code, &charsToReplace, &string->buffer[savedOffset]);
+                    status = simplejs_utf8_encode_char(code, &string->buffer[savedOffset], &string->buffer[string->valid_size], &charsToReplace);
 
                     simplejs_printf("codeStr = '%.*s'\n", utf8BufferPos + 1, utf8Buffer);
                     simplejs_printf("code = 0x%06x\n", code);
