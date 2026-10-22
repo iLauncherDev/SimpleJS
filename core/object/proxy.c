@@ -153,16 +153,14 @@ simplejs_status_t SIMPLEJS_API simplejs_proxy_delete_property(simplejs_proxy_t *
     return status;
 }
 
-simplejs_status_t SIMPLEJS_API simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, const char **out)
+simplejs_status_t SIMPLEJS_API simplejs_proxy_get_string(simplejs_proxy_t *proxy, simplejs_proxy_context_t context, const char **out, simplejs_proxy_get_string_mode_t mode)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_NOT_IMPLEMENTED;
 
     SIMPLEJS_ASSERT(proxy != NULL);
     SIMPLEJS_ASSERT(context.pointer != NULL);
 
-    SIMPLEJS_ASSERT(out != NULL);
-
-    simplejs_proxy_call_if_exists(proxy->f_get_string, status, context, out);
+    simplejs_proxy_call_if_exists(proxy->f_get_string, status, context, out, mode);
 
     return status;
 }

@@ -2,6 +2,7 @@
 #include "default.h"
 #include "number.h"
 #include "function.h"
+#include "proxy_enum.h"
 
 typedef union simplejs_variable simplejs_variable_t;
 
@@ -56,7 +57,7 @@ struct simplejs_function_header
 uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable);
 bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, double *out);
 
-void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out);
+void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out, simplejs_proxy_get_string_mode_t mode);
 
 void SIMPLEJS_API simplejs_variable_dereference(simplejs_variable_t *variable);
 void SIMPLEJS_API simplejs_variable_reference(simplejs_variable_t *variable);
