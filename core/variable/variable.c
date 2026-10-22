@@ -27,69 +27,94 @@ bool SIMPLEJS_API simplejs_variable_get_double(simplejs_variable_t *variable, do
     return true;
 }
 
-void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out)
+void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, char *tempBuffer, size_t tempBufferSize, const char **out, simplejs_proxy_get_string_mode_t mode)
 {
     SIMPLEJS_ASSERT(variable != NULL);
 
-    switch (variable->type)
+    switch (mode)
     {
-    case SIMPLEJS_VARIABLE_TYPE_UNDEFINED:
-        *out = "undefined";
-        break;
-
-    case SIMPLEJS_VARIABLE_TYPE_NAN:
-        *out = "NaN";
-        break;
-
-    case SIMPLEJS_VARIABLE_TYPE_NUMBER:
-    {
-        SIMPLEJS_ASSERT(tempBufferSize > 1);
-
-        simplejs_number_t *number = &variable->value.number;
-
-        switch (number->type)
+    case SIMPLEJS_PROXY_GET_STRING_MODE_OPEN:
+        switch (variable->type)
         {
-        case SIMPLEJS_NUMBER_TYPE_BOOLEAN:
-            *out = number->value.boolean ? "true" : "false";
+        case SIMPLEJS_VARIABLE_TYPE_UNDEFINED:
+            *out = "undefined";
+            break;
+
+        case SIMPLEJS_VARIABLE_TYPE_NAN:
+            *out = "NaN";
+            break;
+
+        case SIMPLEJS_VARIABLE_TYPE_NUMBER:
+        {
+            SIMPLEJS_ASSERT(tempBufferSize > 1);
+
+            simplejs_number_t *number = &variable->value.number;
+
+            switch (number->type)
+            {
+            case SIMPLEJS_NUMBER_TYPE_BOOLEAN:
+                *out = number->value.boolean ? "true" : "false";
+                break;
+
+            default:
+                char tempString[512] = {0};
+
+                simplejs_convert_double_to_string(tempBuffer, tempBufferSize - 1, simplejs_number_get_float64(&variable->value.number));
+
+                *out = tempBuffer;
+                break;
+            }
+
+            break;
+        }
+
+        case SIMPLEJS_VARIABLE_TYPE_OBJECT:
+        {
+            if (variable->value.object == NULL)
+            {
+                *out = "null";
+                break;
+            }
+
+            const char *object_type = "[Unknown Object]";
+            simplejs_object_get_string(variable->value.object, variable->value.object_value, &object_type, mode);
+
+            *out = object_type;
+            break;
+        }
+
+        case SIMPLEJS_VARIABLE_TYPE_FUNCTION:
+            *out = "[Function]";
+            break;
+
+        case SIMPLEJS_VARIABLE_TYPE_FAST_STRING:
+            *out = variable->value.fast_string;
             break;
 
         default:
-            char tempString[512] = {0};
-
-            simplejs_convert_double_to_string(tempBuffer, tempBufferSize - 1, simplejs_number_get_float64(&variable->value.number));
-
-            *out = tempBuffer;
+            SIMPLEJS_ASSERT("unknown variable->type for string conversion" && false);
             break;
         }
-
         break;
-    }
 
-    case SIMPLEJS_VARIABLE_TYPE_OBJECT:
-    {
-        if (variable->value.object == NULL)
+    case SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE:
+        switch (variable->type)
         {
-            *out = "null";
+        case SIMPLEJS_VARIABLE_TYPE_OBJECT:
+        {
+            if (variable->value.object == NULL)
+                break;
+        
+            simplejs_object_get_string(variable->value.object, variable->value.object_value, NULL, mode);
             break;
         }
 
-        const char *object_type = "[Unknown Object]";
-        simplejs_object_get_string(variable->value.object, variable->value.object_value, &object_type);
-
-        *out = object_type;
-        break;
-    }
-
-    case SIMPLEJS_VARIABLE_TYPE_FUNCTION:
-        *out = "[Function]";
-        break;
-
-    case SIMPLEJS_VARIABLE_TYPE_FAST_STRING:
-        *out = variable->value.fast_string;
+        default:
+            break;
+        }
         break;
 
     default:
-        SIMPLEJS_ASSERT("unknown variable->type for string conversion" && false);
         break;
     }
 }

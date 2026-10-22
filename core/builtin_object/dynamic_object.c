@@ -133,14 +133,15 @@ simplejs_status_t simplejs_dynamic_object_get_property_value(simplejs_proxy_cont
     char tempString[4096];
     const char *name;
 
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
-
-    // printf("simplejs_dynamic_object_get_property_value: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
 
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+    // printf("simplejs_dynamic_object_get_property_value: %s\n", name);
+
     simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
+
     if (!object_property)
     {
         simplejs_variable_t *proto_variable = &dynamic_object->prototype_property.property.value;
@@ -176,10 +177,6 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
     char tempString[4096];
     const char *name;
 
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
-
-    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
     if (dynamic_object->read_only)
@@ -188,7 +185,12 @@ simplejs_status_t simplejs_dynamic_object_set_property_value(simplejs_proxy_cont
         goto result;
     }
 
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+    // printf("simplejs_dynamic_object_set_property_value: %s\n", name);
+
     simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, true);
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
+
     if (!object_property)
     {
         status = SIMPLEJS_STATUS_ALLOCATION_ERROR;
@@ -210,10 +212,6 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
     char tempString[4096];
     const char *name;
 
-    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name);
-
-    // printf("simplejs_dynamic_object_delete_property: %s\n", name);
-
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_dynamic_object_raw_t *dynamic_object = context.pointer;
     if (dynamic_object->read_only)
@@ -222,7 +220,12 @@ simplejs_status_t simplejs_dynamic_object_delete_property(simplejs_proxy_context
         goto result;
     }
 
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_OPEN);
+    // printf("simplejs_dynamic_object_delete_property: %s\n", name);
+
     simplejs_dynamic_object_property_t *object_property = simplejs_dynamic_object_find_property(context, name, false);
+    simplejs_variable_to_string(property, tempString, sizeof(tempString), &name, SIMPLEJS_PROXY_GET_STRING_MODE_CLOSE);
+
     if (!object_property)
     {
         status = SIMPLEJS_STATUS_OBJECT_NAME_DOES_NOT_EXIST;
@@ -242,9 +245,10 @@ result:
     return status;
 }
 
-simplejs_status_t simplejs_dynamic_object_get_string(simplejs_proxy_context_t context, const char **out)
+simplejs_status_t simplejs_dynamic_object_get_string(simplejs_proxy_context_t context, const char **out, simplejs_proxy_get_string_mode_t mode)
 {
-    *out = "[Dynamic Object]";
+    if (out)
+        *out = "[Dynamic Object]";
 
     return SIMPLEJS_STATUS_SUCCESS;
 }
