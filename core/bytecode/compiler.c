@@ -540,6 +540,8 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
     case SIMPLEJS_AST_NODE_TYPE_SUPER_REFERENCE:
     {
+        simplejs_compiler_instruction_t *compiler_instruction = NULL;
+
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
 
@@ -559,17 +561,18 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
 
-        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING;
         instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
 
         instruct_tmp.symbol.data = SIMPLEJS_CLASS_PROTOTYPE_PROPERTY;
         instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
         instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
 
-        if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
-            compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_instruction(instruct_tmp, &compiler_instruction), result, status);
 
-        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+        progress_hash_string_instruction(compiler_ctx, compiler_instruction, false);
+
+        simplejs_insert_instruction(compiler_ctx, compiler_instruction, false);
 
         memclr(&instruct_tmp, sizeof(instruct_tmp));
         simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
