@@ -27,6 +27,8 @@ list(APPEND SIMPLEJS_SOURCE
 
     ${SIMPLEJS_PATH}/lib/generic_sort.c
 
+    ${SIMPLEJS_PATH}/lib/smart_property.c
+
     ${SIMPLEJS_PATH}/hash_string/hash_string.c
 
     ${SIMPLEJS_PATH}/number/alu-iptr.c
