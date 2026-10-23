@@ -1508,17 +1508,21 @@ simplejs_status_t simplejs_compile_set_prop(simplejs_compiler_ctx_t *compiler_ct
     uint8_t prop_reg = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
     uint8_t value_reg = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
 
+    simplejs_compiler_instruction_t *compiler_instruction = NULL;
+
     memclr(&instruct_tmp, sizeof(instruct_tmp));
-    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING;
     instruct_tmp.instruction.reg_1 = prop_reg;
 
     instruct_tmp.symbol.data = property->buffer;
     instruct_tmp.symbol.data_size = property->valid_size + 1;
     instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
 
-    if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
-        compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_instruction(instruct_tmp, &compiler_instruction), result, status);
+
+    progress_hash_string_instruction(compiler_ctx, compiler_instruction, false);
+
+    simplejs_insert_instruction(compiler_ctx, compiler_instruction, false);
 
     if (info->is_function)
     {
@@ -1558,6 +1562,9 @@ simplejs_status_t simplejs_compile_ast_class(simplejs_compiler_ctx_t *compiler_c
 
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
     simplejs_compiler_instruction_t instruct_tmp;
+
+    simplejs_compiler_instruction_t *compiler_instruction1 = NULL;
+    simplejs_compiler_instruction_t *compiler_instruction2 = NULL;
 
     char *class_var_name = (char *)class_var_context->name->buffer;
 
@@ -1650,18 +1657,21 @@ simplejs_status_t simplejs_compile_ast_class(simplejs_compiler_ctx_t *compiler_c
     }
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
-    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING;
     instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_PROPERTY;
 
     instruct_tmp.symbol.data = DYNAMIC_OBJECT_STRING_PROPERTY;
     instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
     instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
-    if (!simplejs_reuse_symbol(compiler_ctx, SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING, &instruct_tmp))
-        compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_instruction(instruct_tmp, &compiler_instruction1), result, status);
+
+    progress_hash_string_instruction(compiler_ctx, compiler_instruction1, false);
+
+    simplejs_insert_instruction(compiler_ctx, compiler_instruction1, false);
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
-    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_FAST_STRING;
+    instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_HASH_STRING;
     instruct_tmp.instruction.reg_1 = SIMPLEJS_BYTECODE_VARIABLE_ASSIGN_A;
 
     instruct_tmp.symbol.can_free_data = true;
@@ -1669,8 +1679,11 @@ simplejs_status_t simplejs_compile_ast_class(simplejs_compiler_ctx_t *compiler_c
     instruct_tmp.symbol.data_size = strlen(instruct_tmp.symbol.data) + 1;
     instruct_tmp.symbol.data_offset = compiler_ctx->data_offset;
 
-    compiler_ctx->data_offset += instruct_tmp.symbol.data_size;
-    SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_alloc_instruction(instruct_tmp, &compiler_instruction2), result, status);
+
+    progress_hash_string_instruction(compiler_ctx, compiler_instruction2, true);
+
+    simplejs_insert_instruction(compiler_ctx, compiler_instruction2, false);
 
     memclr(&instruct_tmp, sizeof(instruct_tmp));
     instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_VAR_PROP;
@@ -1694,7 +1707,7 @@ simplejs_status_t simplejs_compile_ast_class(simplejs_compiler_ctx_t *compiler_c
 result:
     if (!SIMPLEJS_SUCCESS(status))
     {
-        if (class_string)
+        if (class_string && !compiler_instruction2)
             simplejs_hook_mfree(class_string);
     }
 
