@@ -1,6 +1,7 @@
 #include <variable.h>
 #include <object.h>
 #include <lib/float_utils.h>
+#include <lib/utf8.h>
 
 uint64_t SIMPLEJS_API simplejs_variable_get_int(simplejs_variable_t *variable)
 {
@@ -86,6 +87,18 @@ void SIMPLEJS_API simplejs_variable_to_string(simplejs_variable_t *variable, cha
             case SIMPLEJS_NUMBER_TYPE_BOOLEAN:
                 *out = number->value.boolean ? "true" : "false";
                 break;
+
+            case SIMPLEJS_NUMBER_TYPE_UNICODE:
+            {
+                uint8_t len;
+                simplejs_utf8_encode_char(number->value.unicode, tempBuffer, &tempBuffer[tempBufferSize - 1], &len);
+                if (len > tempBufferSize - 1)
+                    len = tempBufferSize - 1;
+
+                tempBuffer[len] = '\0';
+                *out = tempBuffer;
+                break;
+            }
 
             default:
                 char tempString[512] = {0};
