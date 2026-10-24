@@ -9,6 +9,8 @@ static bool i32_check[SIMPLEJS_NUMBER_TYPE_END] = {
     [SIMPLEJS_NUMBER_TYPE_UI32] = true,
     [SIMPLEJS_NUMBER_TYPE_UI64] = true,
 
+    [SIMPLEJS_NUMBER_TYPE_UNICODE] = true,
+
     [SIMPLEJS_NUMBER_TYPE_F32] = true,
     [SIMPLEJS_NUMBER_TYPE_F64] = true,
 };
@@ -20,6 +22,8 @@ static bool i64_check[SIMPLEJS_NUMBER_TYPE_END] = {
     [SIMPLEJS_NUMBER_TYPE_UI32] = true,
     [SIMPLEJS_NUMBER_TYPE_UI64] = true,
 
+    [SIMPLEJS_NUMBER_TYPE_UNICODE] = true,
+
     [SIMPLEJS_NUMBER_TYPE_F32] = true,
     [SIMPLEJS_NUMBER_TYPE_F64] = true,
 };
@@ -29,6 +33,8 @@ static bool uiptr_check[SIMPLEJS_NUMBER_TYPE_END] = {
     [SIMPLEJS_NUMBER_TYPE_UI32] = true,
     [SIMPLEJS_NUMBER_TYPE_UI64] = true,
 
+    [SIMPLEJS_NUMBER_TYPE_UNICODE] = true,
+
     [SIMPLEJS_NUMBER_TYPE_F32] = true,
     [SIMPLEJS_NUMBER_TYPE_F64] = true,
 };
@@ -36,6 +42,8 @@ static bool uiptr_check[SIMPLEJS_NUMBER_TYPE_END] = {
 static bool ui32_check[SIMPLEJS_NUMBER_TYPE_END] = {
     [SIMPLEJS_NUMBER_TYPE_UI32] = true,
     [SIMPLEJS_NUMBER_TYPE_UI64] = true,
+
+    [SIMPLEJS_NUMBER_TYPE_UNICODE] = true,
 
     [SIMPLEJS_NUMBER_TYPE_F32] = true,
     [SIMPLEJS_NUMBER_TYPE_F64] = true,

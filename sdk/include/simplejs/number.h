@@ -13,6 +13,8 @@ typedef enum
     SIMPLEJS_NUMBER_TYPE_UI32,
     SIMPLEJS_NUMBER_TYPE_UI64,
 
+    SIMPLEJS_NUMBER_TYPE_UNICODE,
+
     SIMPLEJS_NUMBER_TYPE_F32,
     SIMPLEJS_NUMBER_TYPE_F64,
 
@@ -42,6 +44,8 @@ typedef struct simplejs_number
         uintptr_t uiptr;
         uint32_t ui32;
         uint64_t ui64;
+
+        uint32_t unicode;
 
         float f32;
         double f64;
