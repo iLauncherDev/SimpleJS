@@ -762,6 +762,8 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         switch (reg_info.operation_type)
         {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ_REFERENCE:
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE_REFERENCE:
         case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR;
 
@@ -772,6 +774,12 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR;
 
             instruct_tmp.instruction.reg_1 = reg_info.reg_b;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_GET_REFERENCE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR_REF;
+
+            instruct_tmp.instruction.reg_1 = reg_info.reg_a;
             break;
         default:
             break;
@@ -790,6 +798,8 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
 
         switch (reg_info.operation_type)
         {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ_REFERENCE:
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE_REFERENCE:
         case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR;
 
@@ -800,6 +810,12 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
             instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR;
 
             instruct_tmp.instruction.reg_1 = reg_info.reg_b;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_GET_REFERENCE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR_REF;
+
+            instruct_tmp.instruction.reg_1 = reg_info.reg_a;
             break;
         default:
             break;
@@ -1233,6 +1249,84 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         tmp_reg_info.reg_b = reg_info.reg_a;
 
         SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_GET_REFERENCE:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 1);
+
+        simplejs_compiler_debug_t *compiler_debug = parent_debug;
+
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+
+        simplejs_compiler_reg_info_t tmp_reg_info;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_GET_REFERENCE;
+        tmp_reg_info.reg_a = reg_info.reg_a;
+        tmp_reg_info.reg_b = reg_info.reg_b;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        break;
+    }
+
+    case SIMPLEJS_AST_NODE_TYPE_GET_REFERENCE_VALUE:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 1);
+
+        bool using_ref = true;
+        simplejs_compiler_debug_t *compiler_debug = parent_debug;
+
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+
+        simplejs_compiler_reg_info_t tmp_reg_info;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        switch (reg_info.operation_type)
+        {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
+            tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ_REFERENCE;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE:
+            tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE_REFERENCE;
+            break;
+        default:
+            tmp_reg_info.operation_type = reg_info.operation_type;
+            break;
+        }
+        tmp_reg_info.reg_a = reg_info.reg_a;
+        tmp_reg_info.reg_b = reg_info.reg_b;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        simplejs_alloc_and_insert_temp(instruct_tmp.compiler_debug, side, compiler_debug_list, result, status);
+
+        switch (reg_info.operation_type)
+        {
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_REF_VAR;
+
+            instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+            instruct_tmp.instruction.reg_2 = reg_info.reg_a;
+            break;
+
+        case SIMPLEJS_COMPILER_REG_OPERATION_TYPE_WRITE:
+            instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_SET_REF_VAR;
+
+            instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+            instruct_tmp.instruction.reg_2 = reg_info.reg_b;
+            break;
+        default:
+            using_ref = false;
+            break;
+        }
+        if (using_ref)
+            SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
 
         break;
     }
@@ -1853,11 +1947,21 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         simplejs_printf("get_global_var v%u", instruction.reg_1);
         break;
 
+    case SIMPLEJS_BYTECODE_OPCODE_GET_REF_VAR:
+        simplejs_printf("get_ref_var v%u, v%u", instruction.reg_1, instruction.reg_2);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_SET_REF_VAR:
+        simplejs_printf("set_ref_var v%u, v%u", instruction.reg_1, instruction.reg_2);
+        break;
+
     case SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR:
         simplejs_printf("get_loc_var v%u, %u", instruction.reg_1, instruction.imm);
         break;
     case SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR:
         simplejs_printf("set_loc_var %u, v%u", instruction.imm, instruction.reg_1);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR_REF:
+        simplejs_printf("get_loc_var_ref %u, v%u", instruction.imm, instruction.reg_1);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_GET_CALL_ARG_VAR:
@@ -1872,6 +1976,9 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         break;
     case SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR:
         simplejs_printf("set_func_arg_var %u, v%u", instruction.imm, instruction.reg_1);
+        break;
+    case SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR_REF:
+        simplejs_printf("get_func_arg_var_ref %u, v%u", instruction.imm, instruction.reg_1);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR:

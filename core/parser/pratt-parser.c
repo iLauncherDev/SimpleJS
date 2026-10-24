@@ -757,6 +757,19 @@ static simplejs_status_t simplejs_nud(
         goto result;
     }
 
+    if (simplejs_check_token_operator(token, "&") || simplejs_check_token_operator(token, "*"))
+    {
+        simplejs_ast_node_type_t type =
+            simplejs_check_token_operator(token, "&") ? SIMPLEJS_AST_NODE_TYPE_GET_REFERENCE : SIMPLEJS_AST_NODE_TYPE_GET_REFERENCE_VALUE;
+
+        status = simplejs_parse_expression(parser_ctx, start_token, &right, 1000000, end_operators, end_operators_size);
+        if (!SIMPLEJS_SUCCESS(status))
+            goto result;
+
+        status = simplejs_make_unary_node(token, type, false, out, right);
+        goto result;
+    }
+
     if (simplejs_check_token_operator(token, "("))
     {
         simplejs_parser_printf("starting sub-expression\n");
