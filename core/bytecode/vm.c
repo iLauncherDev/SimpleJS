@@ -441,7 +441,8 @@ simplejs_status_t simplejs_bytecode_opcode_set_return_var(simplejs_vm_t *vm, sim
     simplejs_variable_t *out = &function_header->return_variable;
     simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
 
-    simplejs_variable_assign(out, in);
+    if (in->type != SIMPLEJS_VARIABLE_TYPE_REFERENCE)
+        simplejs_variable_assign(out, in);
 
 result:
     return status;
@@ -622,6 +623,73 @@ result:
     return status;
 }
 
+simplejs_status_t simplejs_bytecode_opcode_get_ref_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t *ref = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_2];
+
+    simplejs_variable_t tmp_var;
+    simplejs_variable_init_undefined(&tmp_var);
+    if (ref->type == SIMPLEJS_VARIABLE_TYPE_REFERENCE)
+        simplejs_variable_assign(&tmp_var, ref->value.reference);
+
+    simplejs_variable_assign(out, &tmp_var);
+    simplejs_variable_dereference(&tmp_var);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_set_ref_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t *ref = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &vm->state.variables[instruction->reg_2];
+
+    if (ref->type == SIMPLEJS_VARIABLE_TYPE_REFERENCE)
+    {
+        simplejs_function_header_t *function_header;
+        simplejs_vm_local_vars_t *local_vars;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_local_vars(vm, &local_vars, vm->state.local_var_offset), result, status);
+
+        simplejs_variable_t fallback_variable;
+        simplejs_variable_init_undefined(&fallback_variable);
+
+        uintptr_t ref_var_address = (uintptr_t)ref->value.reference;
+        uintptr_t in_ref_var_address = (uintptr_t)in->value.reference;
+
+        uintptr_t local_arg_start = (uintptr_t)function_header->arguments;
+        uintptr_t local_arg_end = local_arg_start + (sizeof(*function_header->arguments) * function_header->argument_count);
+
+        uintptr_t local_var_start = (uintptr_t)local_vars->variables;
+        uintptr_t local_var_end = local_var_start + (sizeof(*local_vars->variables) * local_vars->variable_count);
+
+        bool is_input_ref_inside_scope =
+            ((in_ref_var_address >= local_arg_start) & (in_ref_var_address < local_arg_end)) |
+            ((in_ref_var_address >= local_var_start) & (in_ref_var_address < local_var_end));
+
+        bool is_ref_inside_scope =
+            (((ref_var_address >= local_arg_start) & (ref_var_address < local_arg_end)) |
+             ((ref_var_address >= local_var_start) & (ref_var_address < local_var_end)));
+
+        uintptr_t is_safe_assign_mask =
+            -((in->type != SIMPLEJS_VARIABLE_TYPE_REFERENCE) | !is_input_ref_inside_scope | is_ref_inside_scope);
+
+        const simplejs_variable_t *new_in =
+            (const void *)(((uintptr_t)in & is_safe_assign_mask) | ((uintptr_t)&fallback_variable & ~is_safe_assign_mask));
+
+        simplejs_variable_assign(ref->value.reference, new_in);
+    }
+
+result:
+    return status;
+}
+
 simplejs_status_t simplejs_bytecode_opcode_get_loc_var(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -666,6 +734,30 @@ simplejs_status_t simplejs_bytecode_opcode_set_loc_var(simplejs_vm_t *vm, simple
 
     simplejs_variable_assign(out, in);
     simplejs_variable_dereference(&fallback_variable);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_get_loc_var_ref(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_vm_local_vars_t *local_vars;
+
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_local_vars(vm, &local_vars, vm->state.local_var_offset), result, status);
+
+    uint32_t slot = instruction->imm;
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &local_vars->variables[slot];
+
+    simplejs_variable_t tmp_var;
+    simplejs_variable_init_undefined(&tmp_var);
+    if (slot < local_vars->variable_count)
+        simplejs_variable_init_reference(&tmp_var, in);
+
+    simplejs_variable_assign(out, &tmp_var);
 
 result:
     return status;
@@ -761,6 +853,29 @@ simplejs_status_t simplejs_bytecode_opcode_set_func_arg_var(simplejs_vm_t *vm, s
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
 
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_bytecode_helper_set_func_arg(vm, instruction, function_header), result, status);
+
+result:
+    return status;
+}
+
+simplejs_status_t simplejs_bytecode_opcode_get_func_arg_var_ref(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_function_header_t *function_header;
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_get_function_header(vm, &function_header, vm->state.saved_argument_offset), result, status);
+
+    uint32_t slot = instruction->imm;
+
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *in = &function_header->arguments[slot];
+
+    simplejs_variable_t tmp_var;
+    simplejs_variable_init_undefined(&tmp_var);
+    if (slot < function_header->argument_count)
+        simplejs_variable_init_reference(&tmp_var, in);
+
+    simplejs_variable_assign(out, &tmp_var);
 
 result:
     return status;
@@ -1322,14 +1437,19 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_GLOBAL_VAR] = simplejs_bytecode_opcode_get_global_var,
 
+    [SIMPLEJS_BYTECODE_OPCODE_GET_REF_VAR] = simplejs_bytecode_opcode_get_ref_var,
+    [SIMPLEJS_BYTECODE_OPCODE_SET_REF_VAR] = simplejs_bytecode_opcode_set_ref_var,
+
     [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR] = simplejs_bytecode_opcode_get_loc_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR] = simplejs_bytecode_opcode_set_loc_var,
+    [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR_REF] = simplejs_bytecode_opcode_get_loc_var_ref,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_CALL_ARG_VAR] = simplejs_bytecode_opcode_get_call_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_ARG_VAR] = simplejs_bytecode_opcode_set_call_arg_var,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_get_func_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_FUNC_ARG_VAR] = simplejs_bytecode_opcode_set_func_arg_var,
+    [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_ARG_VAR_REF] = simplejs_bytecode_opcode_get_func_arg_var_ref,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_FUNC_THIS_VAR] = simplejs_bytecode_opcode_get_func_this_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_THIS_VAR] = simplejs_bytecode_opcode_set_call_this_var,

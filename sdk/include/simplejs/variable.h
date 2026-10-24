@@ -17,6 +17,7 @@ typedef enum simplejs_variable_type
     SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX,
     SIMPLEJS_VARIABLE_TYPE_FAST_STRING,
     SIMPLEJS_VARIABLE_TYPE_FUNCTION,
+    SIMPLEJS_VARIABLE_TYPE_REFERENCE,
 
     SIMPLEJS_VARIABLE_TYPE_END,
 } simplejs_variable_type_t;
@@ -54,6 +55,12 @@ union simplejs_variable
         };
 
         simplejs_function_t function;
+
+        struct
+        {
+            uint16_t reserved_reference;
+            simplejs_variable_t *reference;
+        };
     } value;
 };
 
@@ -94,6 +101,7 @@ void SIMPLEJS_API simplejs_variable_init_function(simplejs_variable_t *variable,
 void SIMPLEJS_API simplejs_variable_init_hash_string(simplejs_variable_t *variable, const simplejs_hash_string_t *hash_string);
 void SIMPLEJS_API simplejs_variable_init_hash_string_ctx(simplejs_variable_t *variable, const simplejs_hash_string_ctx_t *hash_string_ctx);
 void SIMPLEJS_API simplejs_variable_init_fast_string(simplejs_variable_t *variable, const char *fast_string);
+void SIMPLEJS_API simplejs_variable_init_reference(simplejs_variable_t *variable, simplejs_variable_t *reference);
 
 bool SIMPLEJS_API simplejs_variable_assign_ex(void *parent_pointer, simplejs_variable_t *variable, const simplejs_variable_t *new_variable);
 
