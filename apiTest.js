@@ -96,6 +96,24 @@ my_b.self = my_b;
 my_a.loop = my_b;
 my_b.loop = my_a;
 
+var my_dynamic_string = create_dynamic_string();
+
+my_dynamic_string[my_dynamic_string.length] = "Hello";
+my_dynamic_string.length = 0;
+
+my_dynamic_string[my_dynamic_string.length] = "Hello";
+my_dynamic_string[my_dynamic_string.length] = " World Ç";
+
+for (var i = 0, len = 0; i < my_dynamic_string.length; i += len)
+{
+    var char = my_dynamic_string.charAt(i, &len);
+
+    print(char);
+}
+print("\n");
+
+test_plugin_function(my_dynamic_string, my_dynamic_string.length);
+
 //var my_instance = new my_class();
 //
 //my_class.default_value = 393093902390;
