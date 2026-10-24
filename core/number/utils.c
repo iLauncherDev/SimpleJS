@@ -41,6 +41,11 @@
         return (type)number->value.ui64;                                                                     \
     }                                                                                                        \
                                                                                                              \
+    type simplejs_number_get_##name##_unicode(simplejs_number_t *number)                                     \
+    {                                                                                                        \
+        return (type)number->value.unicode;                                                                  \
+    }                                                                                                        \
+                                                                                                             \
     type simplejs_number_get_##name##_f32(simplejs_number_t *number)                                         \
     {                                                                                                        \
         return (sign_type)number->value.f32;                                                                 \
@@ -61,6 +66,8 @@
         [SIMPLEJS_NUMBER_TYPE_UIPTR] = simplejs_number_get_##name##_uiptr,                                   \
         [SIMPLEJS_NUMBER_TYPE_UI32] = simplejs_number_get_##name##_ui32,                                     \
         [SIMPLEJS_NUMBER_TYPE_UI64] = simplejs_number_get_##name##_ui64,                                     \
+                                                                                                             \
+        [SIMPLEJS_NUMBER_TYPE_UNICODE] = simplejs_number_get_##name##_unicode,                               \
                                                                                                              \
         [SIMPLEJS_NUMBER_TYPE_F32] = simplejs_number_get_##name##_f32,                                       \
         [SIMPLEJS_NUMBER_TYPE_F64] = simplejs_number_get_##name##_f64,                                       \
