@@ -120,7 +120,9 @@ function change_my_fucking_var(my_fucking_ref)
 }
 
 print("my_fucking_var before change_my_fucking_var: ", my_fucking_var, "\n");
-print(change_my_fucking_var(&my_fucking_var), "\n");
+change_my_fucking_var(&my_fucking_var);
+
+print(typeof my_fucking_var, "\n");
 print("my_fucking_var after change_my_fucking_var: ", my_fucking_var, "\n");
 
 test_plugin_function(my_dynamic_string, my_dynamic_string.length);
