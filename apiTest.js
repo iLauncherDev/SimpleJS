@@ -112,6 +112,17 @@ for (var i = 0, len = 0; i < my_dynamic_string.length; i += len)
 }
 print("\n");
 
+var my_fucking_var = 10;
+
+function change_my_fucking_var(my_fucking_ref)
+{
+    (*my_fucking_ref) *= 2;
+}
+
+print("my_fucking_var before change_my_fucking_var: ", my_fucking_var, "\n");
+print(change_my_fucking_var(&my_fucking_var), "\n");
+print("my_fucking_var after change_my_fucking_var: ", my_fucking_var, "\n");
+
 test_plugin_function(my_dynamic_string, my_dynamic_string.length);
 
 //var my_instance = new my_class();
