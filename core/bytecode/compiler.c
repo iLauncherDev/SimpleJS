@@ -1213,6 +1213,33 @@ simplejs_status_t simplejs_compile_ast_operation(simplejs_compiler_ctx_t *compil
         break;
     }
 
+    case SIMPLEJS_AST_NODE_TYPE_TYPEOF:
+    {
+        SIMPLEJS_ASSERT(side->children_list_count == 1);
+
+        simplejs_compiler_debug_t *compiler_debug = parent_debug;
+
+        simplejs_ast_node_t *left = simplejs_get_list_entry_structure(side->children_list_entry.next);
+
+        simplejs_compiler_reg_info_t tmp_reg_info;
+
+        memclr(&tmp_reg_info, sizeof(tmp_reg_info));
+        tmp_reg_info.operation_type = SIMPLEJS_COMPILER_REG_OPERATION_TYPE_READ;
+        tmp_reg_info.reg_a = reg_info.reg_a;
+        tmp_reg_info.reg_b = reg_info.reg_b;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_compile_ast_operation(compiler_ctx, compiler_debug, tmp_reg_info, left), result, status);
+
+        memclr(&instruct_tmp, sizeof(instruct_tmp));
+        instruct_tmp.instruction.opcode = SIMPLEJS_BYTECODE_OPCODE_GET_VAR_TYPE;
+        instruct_tmp.instruction.reg_1 = reg_info.reg_a;
+        instruct_tmp.instruction.reg_2 = reg_info.reg_a;
+
+        SIMPLEJS_REQUIRE_SUCCESS(simplejs_add_instruction(compiler_ctx, instruct_tmp), result, status);
+
+        break;
+    }
+
     case SIMPLEJS_AST_NODE_TYPE_NEW:
     {
         SIMPLEJS_ASSERT(side->children_list_count == 1);
@@ -1962,6 +1989,10 @@ void simplejs_disasm_bytecode(simplejs_bytecode_instruction_t instruction, uintp
         break;
     case SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR_REF:
         simplejs_printf("get_loc_var_ref %u, v%u", instruction.imm, instruction.reg_1);
+        break;
+
+    case SIMPLEJS_BYTECODE_OPCODE_GET_VAR_TYPE:
+        simplejs_printf("get_var_type v%u, v%u", instruction.reg_1, instruction.reg_2);
         break;
 
     case SIMPLEJS_BYTECODE_OPCODE_GET_CALL_ARG_VAR:

@@ -2,6 +2,41 @@
 
 #define STACK_SIZE (64 * 1024)
 
+static simplejs_hash_string_ctx_t type_table_null = {.string = "null"};
+
+static simplejs_hash_string_ctx_t type_table[SIMPLEJS_VARIABLE_TYPE_END] = {
+    [SIMPLEJS_VARIABLE_TYPE_UNDEFINED] = {.string = "undefined"},
+    [SIMPLEJS_VARIABLE_TYPE_NAN] = {.string = "NaN"},
+    [SIMPLEJS_VARIABLE_TYPE_NUMBER] = {.string = "number"},
+    [SIMPLEJS_VARIABLE_TYPE_OBJECT] = {.string = "object"},
+    [SIMPLEJS_VARIABLE_TYPE_HASH_STRING] = {.string = "hash_string"},
+    [SIMPLEJS_VARIABLE_TYPE_HASH_STRING_CTX] = {.string = "hash_string_ctx"},
+    [SIMPLEJS_VARIABLE_TYPE_FAST_STRING] = {.string = "fast_string"},
+    [SIMPLEJS_VARIABLE_TYPE_FUNCTION] = {.string = "function"},
+    [SIMPLEJS_VARIABLE_TYPE_REFERENCE] = {.string = "reference"},
+};
+
+simplejs_status_t simplejs_init_vm()
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    type_table_null.hash = simplejs_hash_string_generate_hash(type_table_null.string);
+
+    for (size_t i = 0; i < sizeof(type_table) / sizeof(*type_table); i++)
+    {
+        simplejs_hash_string_ctx_t *entry = &type_table[i];
+
+        entry->hash = simplejs_hash_string_generate_hash(entry->string);
+    }
+
+    return status;
+}
+
+void simplejs_uninit_vm()
+{
+    return;
+}
+
 simplejs_status_t SIMPLEJS_API simplejs_create_vm(simplejs_vm_t **out)
 {
     simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
@@ -763,6 +798,27 @@ result:
     return status;
 }
 
+simplejs_status_t simplejs_bytecode_opcode_get_var_type(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction)
+{
+    simplejs_status_t status = SIMPLEJS_STATUS_SUCCESS;
+
+    simplejs_variable_t *in = &vm->state.variables[instruction->reg_1];
+    simplejs_variable_t *out = &vm->state.variables[instruction->reg_2];
+
+    uintptr_t inside_bounds_mask = -(in->type < SIMPLEJS_VARIABLE_TYPE_END);
+    uintptr_t is_null_object_mask = -(in->type == SIMPLEJS_VARIABLE_TYPE_OBJECT & in->value.object == NULL);
+    uintptr_t final_result =
+        ((uintptr_t)&type_table_null & is_null_object_mask) | ((uintptr_t)&type_table[in->type & inside_bounds_mask] & ~is_null_object_mask);
+
+    simplejs_variable_t tmp_var;
+    simplejs_variable_init_hash_string_ctx(&tmp_var, (const simplejs_hash_string_ctx_t *)final_result);
+
+    simplejs_variable_assign(out, &tmp_var);
+
+result:
+    return status;
+}
+
 static inline simplejs_status_t simplejs_bytecode_helper_get_func_arg(
     simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction, simplejs_function_header_t *function_header)
 {
@@ -1443,6 +1499,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_bytecode_opcode_jumptable[SIMPLEJS
     [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR] = simplejs_bytecode_opcode_get_loc_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR] = simplejs_bytecode_opcode_set_loc_var,
     [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR_REF] = simplejs_bytecode_opcode_get_loc_var_ref,
+
+    [SIMPLEJS_BYTECODE_OPCODE_GET_VAR_TYPE] = simplejs_bytecode_opcode_get_var_type,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_CALL_ARG_VAR] = simplejs_bytecode_opcode_get_call_arg_var,
     [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_ARG_VAR] = simplejs_bytecode_opcode_set_call_arg_var,

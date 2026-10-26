@@ -108,3 +108,6 @@ struct simplejs_vm_executable
 typedef simplejs_status_t (*simplejs_bytecode_opcode_jumptable_t)(simplejs_vm_t *vm, simplejs_bytecode_instruction_t *instruction);
 
 simplejs_status_t simplejs_execute_reverse_vm(simplejs_vm_t *vm);
+
+simplejs_status_t simplejs_init_vm();
+void simplejs_uninit_vm();
