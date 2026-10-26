@@ -1,4 +1,5 @@
 #include <default.h>
+#include <vm.h>
 #include <mm/gc.h>
 #include <builtin_object/dynamic_object.h>
 
@@ -12,6 +13,7 @@ simplejs_status_t SIMPLEJS_API simplejs_init()
 
     simplejs_initialize_composite_list();
 
+    SIMPLEJS_REQUIRE_SUCCESS(simplejs_init_vm(), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_init_object(), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_init_gc(), result, status);
     SIMPLEJS_REQUIRE_SUCCESS(simplejs_builtin_init_dynamic_object(), result, status);
@@ -25,4 +27,6 @@ void SIMPLEJS_API simplejs_uninit()
     simplejs_builtin_uninit_dynamic_object();
 
     simplejs_uninit_object();
+
+    simplejs_uninit_vm();
 }

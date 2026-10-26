@@ -60,6 +60,8 @@ const char *simplejs_get_ast_node_type_string(simplejs_ast_node_type_t type)
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_ASSIGN);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_OP_ASSIGN);
 
+        CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_TYPEOF);
+
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_NEW);
         CASE_TO_STRING(SIMPLEJS_AST_NODE_TYPE_DELETE);
 

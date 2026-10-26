@@ -182,6 +182,8 @@ simplejs_bytecode_opcode_jumptable_t simplejs_reverse_bytecode_opcode_jumptable[
     [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_LOC_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_GET_LOC_VAR_REF] = simplejs_reverse_bytecode_opcode_nop,
+    
+    [SIMPLEJS_BYTECODE_OPCODE_GET_VAR_TYPE] = simplejs_reverse_bytecode_opcode_nop,
 
     [SIMPLEJS_BYTECODE_OPCODE_GET_CALL_ARG_VAR] = simplejs_reverse_bytecode_opcode_nop,
     [SIMPLEJS_BYTECODE_OPCODE_SET_CALL_ARG_VAR] = simplejs_reverse_bytecode_opcode_nop,
