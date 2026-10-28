@@ -962,13 +962,14 @@ simplejs_status_t simplejs_process_operator(
                     break;
                 simplejs_token_prev(parser_ctx, start_token);
 
-                simplejs_ast_node_t *arg;
+                simplejs_ast_node_t *arg = NULL;
 
                 status = simplejs_parse_expression(parser_ctx, start_token, &arg, 0, end_operators, sizeof(end_operators));
                 if (!SIMPLEJS_SUCCESS(status))
-                    goto result;
+                    SIMPLEJS_PARSER_UPDATE_STATUS(parser_ctx, status);
 
-                simplejs_insert_children_ast_to_parent(function_call_ast, arg);
+                if (arg)
+                    simplejs_insert_children_ast_to_parent(function_call_ast, arg);
 
                 function_operator_token = simplejs_token_next(parser_ctx, start_token);
                 if (simplejs_check_token_operator(function_operator_token, ")"))
@@ -984,7 +985,7 @@ simplejs_status_t simplejs_process_operator(
                         SIMPLEJS_DIAGNOSTIC_MESSAGE_TYPE_ERROR, message);
 
                     status = SIMPLEJS_STATUS_INVALID_TOKEN;
-                    goto result;
+                    SIMPLEJS_PARSER_UPDATE_STATUS(parser_ctx, status);
                 }
             }
 
