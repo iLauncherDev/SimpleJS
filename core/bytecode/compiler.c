@@ -2087,6 +2087,12 @@ simplejs_status_t SIMPLEJS_API simplejs_ast_to_bytecode(simplejs_parser_ctx_t *p
     simplejs_init_list_entry(&compiler_ctx->instruction_list, compiler_ctx);
     simplejs_init_list_entry(&compiler_ctx->debug_list, compiler_ctx);
 
+    if (parser_ctx->is_invalid)
+    {
+        status = SIMPLEJS_STATUS_UNSUCCESSFUL;
+        goto result;
+    }
+
     status = simplejs_compile_ast_function(compiler_ctx, parser_ctx->root_ast);
     if (!SIMPLEJS_SUCCESS(status))
     {

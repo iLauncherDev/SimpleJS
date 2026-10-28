@@ -1772,11 +1772,10 @@ simplejs_status_t SIMPLEJS_API simplejs_tokens_to_ast(simplejs_token_ctx_t *toke
             simplejs_ast_node_t *expression = NULL;
             simplejs_ast_expression_context_t *expression_ctx = parser_ctx->current_ast_stack->context;
 
-            status = simplejs_parse_expression(parser_ctx, &current_token, &expression, 0, expression_ctx->end_operators, expression_ctx->end_operators_size);
-            if (!SIMPLEJS_SUCCESS(status))
-            {
-                goto result;
-            }
+            SIMPLEJS_PARSER_UPDATE_STATUS(
+                parser_ctx,
+                simplejs_parse_expression(parser_ctx, &current_token, &expression, 0, expression_ctx->end_operators, expression_ctx->end_operators_size)
+            );
 
             if (expression)
                 simplejs_add_children_ast(parser_ctx, expression);

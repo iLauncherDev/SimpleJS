@@ -217,6 +217,7 @@ struct simplejs_parser_ctx
 {
     simplejs_token_ctx_t *token_ctx;
 
+    bool is_invalid;
     simplejs_parser_state_t state;
 
     simplejs_ast_node_t *root_ast;
@@ -230,6 +231,12 @@ struct simplejs_parser_ctx
 
     simplejs_token_t *current_token;
 };
+
+#define SIMPLEJS_PARSER_UPDATE_STATUS(parser_ctx, status)    \
+    do                                                       \
+    {                                                        \
+        parser_ctx->is_invalid |= !SIMPLEJS_SUCCESS(status); \
+    } while (0);
 
 typedef bool (*simplejs_get_scoped_callback_f)(simplejs_ast_scope_context_t *scope_context, void *context, void *out, bool is_out_of_function);
 
