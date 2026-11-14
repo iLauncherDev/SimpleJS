@@ -18,6 +18,7 @@
 #include "lib/status.h"
 #include "lib/list.h"
 #include "lib/safe_list.h"
+#include "lib/map_list.h"
 #include "lib/s_string.h"
 
 #define FUNC_IS_ON_STRING(name, vector)                               \
