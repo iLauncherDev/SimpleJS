@@ -1,7 +1,11 @@
 #pragma once
 #include "../default.h"
 
-typedef simplejs_atomic_int_t simplejs_spinlock_t;
+typedef struct simplejs_spinlock
+{
+    simplejs_atomic_int64_t thread;
+    simplejs_atomic_int_t count;
+} simplejs_spinlock_t;
 
 void SIMPLEJS_PLATFORM_API simplejs_init_spinlock(simplejs_spinlock_t *spinlock);
 bool SIMPLEJS_PLATFORM_API simplejs_spinlock_acquire(simplejs_spinlock_t *spinlock, bool wait_flag);
